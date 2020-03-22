@@ -19,15 +19,21 @@ port localStorageSet : { key : String, value : String } -> Cmd msg
 port localStorageClear : () -> Cmd msg
 
 
+type alias SourceFile =
+    { name : String
+    , content : String
+    }
+
+
 type alias Flags =
     { title : String
-    , sourceCode : String
+    , sourceFiles : List SourceFile
     }
 
 
 type alias Model =
     { title : String
-    , sourceCode : String
+    , sourceFiles : List SourceFile
     , waitingForJs : Bool
     , localStorageFormKey : String
     , localStorageFormValue : String
@@ -41,7 +47,7 @@ type Msg
     | GetFromLocalStorageResp String
     | SetToLocalStorage
     | ClearLocalStorage
-    | UpdSourceCode String
+    | UpdSourceCode Int String
 
 
 main : Program Flags Model Msg
@@ -59,7 +65,7 @@ init flags =
     let
         initialState =
             { title = flags.title
-            , sourceCode = flags.sourceCode
+            , sourceFiles = flags.sourceFiles
             , waitingForJs = False
             , localStorageFormKey = ""
             , localStorageFormValue = ""
@@ -70,7 +76,7 @@ init flags =
 
 view : Model -> Html Msg
 view model =
-    H.div []
+    H.div [] <|
         [ H.fieldset [ A.disabled model.waitingForJs ]
             [ H.h1 [] [ H.text model.title ]
             , viewLabeledInput "Key" model.localStorageFormKey UpdLocalStorageFormKey
@@ -85,12 +91,22 @@ view model =
                     ]
                 ]
             ]
-        , H.node "code-viewer"
-            [ A.attribute "editor-value" model.sourceCode
-            , E.on "editorChanged" <| JD.map UpdSourceCode <| JD.at [ "detail", "value" ] JD.string
-            ]
-            []
         ]
+            ++ viewSourceFiles model.sourceFiles
+
+
+viewSourceFiles : List SourceFile -> List (Html Msg)
+viewSourceFiles =
+    List.indexedMap <|
+        \index sourceFile ->
+            H.div [ A.class "codeViewerContainer" ]
+                [ H.h3 [] [ H.text sourceFile.name ]
+                , H.node "code-viewer"
+                    [ A.attribute "editor-value" sourceFile.content
+                    , E.on "editorChanged" <| JD.map (UpdSourceCode index) <| JD.at [ "detail", "value" ] <| JD.string
+                    ]
+                    []
+                ]
 
 
 viewLabeledInput : String -> String -> (String -> msg) -> Html msg
@@ -131,10 +147,22 @@ update msg model =
         ClearLocalStorage ->
             ( { model | localStorageFormKey = "", localStorageFormValue = "" }, localStorageClear () )
 
-        UpdSourceCode newValue ->
-            ( { model | sourceCode = newValue }, Cmd.none )
+        UpdSourceCode updateIndex newContent ->
+            let
+                updateByIndex =
+                    \index sourceFile ->
+                        if index == updateIndex then
+                            { sourceFile | content = newContent }
+
+                        else
+                            sourceFile
+
+                updatedSourceFiles =
+                    List.indexedMap updateByIndex model.sourceFiles
+            in
+            ( { model | sourceFiles = updatedSourceFiles }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-    localStorageGetResp (\{ value } -> GetFromLocalStorageResp value)
+subscriptions =
+    always <| localStorageGetResp (\{ value } -> GetFromLocalStorageResp value)

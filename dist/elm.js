@@ -10538,7 +10538,7 @@ var $elm$core$Basics$never = function (_v0) {
 };
 var $elm$browser$Browser$element = _Browser_element;
 var $author$project$Main$init = function (flags) {
-	var initialState = {localStorageFormKey: '', localStorageFormValue: '', sourceCode: flags.sourceCode, title: flags.title, waitingForJs: false};
+	var initialState = {localStorageFormKey: '', localStorageFormValue: '', sourceFiles: flags.sourceFiles, title: flags.title, waitingForJs: false};
 	return _Utils_Tuple2(initialState, $elm$core$Platform$Cmd$none);
 };
 var $author$project$Main$GetFromLocalStorageResp = function (a) {
@@ -10553,13 +10553,12 @@ var $author$project$Main$localStorageGetResp = _Platform_incomingPort(
 				{value: value});
 		},
 		A2($elm$json$Json$Decode$field, 'value', $elm$json$Json$Decode$string)));
-var $author$project$Main$subscriptions = function (model) {
-	return $author$project$Main$localStorageGetResp(
+var $author$project$Main$subscriptions = $elm$core$Basics$always(
+	$author$project$Main$localStorageGetResp(
 		function (_v0) {
 			var value = _v0.value;
 			return $author$project$Main$GetFromLocalStorageResp(value);
-		});
-};
+		}));
 var $elm$json$Json$Encode$null = _Json_encodeNull;
 var $author$project$Main$localStorageClear = _Platform_outgoingPort(
 	'localStorageClear',
@@ -10636,11 +10635,19 @@ var $author$project$Main$update = F2(
 						{localStorageFormKey: '', localStorageFormValue: ''}),
 					$author$project$Main$localStorageClear(_Utils_Tuple0));
 			default:
-				var newValue = msg.a;
+				var updateIndex = msg.a;
+				var newContent = msg.b;
+				var updateByIndex = F2(
+					function (index, sourceFile) {
+						return _Utils_eq(index, updateIndex) ? _Utils_update(
+							sourceFile,
+							{content: newContent}) : sourceFile;
+					});
+				var updatedSourceFiles = A2($elm$core$List$indexedMap, updateByIndex, model.sourceFiles);
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{sourceCode: newValue}),
+						{sourceFiles: updatedSourceFiles}),
 					$elm$core$Platform$Cmd$none);
 		}
 	});
@@ -10653,10 +10660,6 @@ var $author$project$Main$UpdLocalStorageFormKey = function (a) {
 var $author$project$Main$UpdLocalStorageFormValue = function (a) {
 	return {$: 'UpdLocalStorageFormValue', a: a};
 };
-var $author$project$Main$UpdSourceCode = function (a) {
-	return {$: 'UpdSourceCode', a: a};
-};
-var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
 var $elm$json$Json$Encode$bool = _Json_wrap;
 var $elm$html$Html$Attributes$boolProperty = F2(
 	function (key, bool) {
@@ -10705,112 +10708,140 @@ var $author$project$Main$viewLabeledInput = F3(
 						]))
 				]));
 	});
+var $author$project$Main$UpdSourceCode = F2(
+	function (a, b) {
+		return {$: 'UpdSourceCode', a: a, b: b};
+	});
+var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
+var $elm$html$Html$h3 = _VirtualDom_node('h3');
+var $author$project$Main$viewSourceFiles = $elm$core$List$indexedMap(
+	F2(
+		function (index, sourceFile) {
+			return A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$class('codeViewerContainer')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$h3,
+						_List_Nil,
+						_List_fromArray(
+							[
+								$elm$html$Html$text(sourceFile.name)
+							])),
+						A3(
+						$elm$html$Html$node,
+						'code-viewer',
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$attribute, 'editor-value', sourceFile.content),
+								A2(
+								$elm$html$Html$Events$on,
+								'editorChanged',
+								A2(
+									$elm$json$Json$Decode$map,
+									$author$project$Main$UpdSourceCode(index),
+									A2(
+										$elm$json$Json$Decode$at,
+										_List_fromArray(
+											['detail', 'value']),
+										$elm$json$Json$Decode$string)))
+							]),
+						_List_Nil)
+					]));
+		}));
 var $author$project$Main$view = function (model) {
 	return A2(
 		$elm$html$Html$div,
 		_List_Nil,
-		_List_fromArray(
-			[
-				A2(
-				$elm$html$Html$fieldset,
-				_List_fromArray(
-					[
-						$elm$html$Html$Attributes$disabled(model.waitingForJs)
-					]),
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$h1,
-						_List_Nil,
-						_List_fromArray(
-							[
-								$elm$html$Html$text(model.title)
-							])),
-						A3($author$project$Main$viewLabeledInput, 'Key', model.localStorageFormKey, $author$project$Main$UpdLocalStorageFormKey),
-						A3($author$project$Main$viewLabeledInput, 'Value', model.localStorageFormValue, $author$project$Main$UpdLocalStorageFormValue),
-						A2(
-						$elm$html$Html$p,
-						_List_fromArray(
-							[
-								$elm$html$Html$Attributes$class('row')
-							]),
-						_List_fromArray(
-							[
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										$elm$html$Html$Attributes$class('spacer')
-									]),
-								_List_Nil),
-								A2(
-								$elm$html$Html$div,
-								_List_fromArray(
-									[
-										$elm$html$Html$Attributes$class('buttons')
-									]),
-								_List_fromArray(
-									[
-										A2(
-										$elm$html$Html$button,
-										_List_fromArray(
-											[
-												$elm$html$Html$Events$onClick($author$project$Main$GetFromLocalStorageReq)
-											]),
-										_List_fromArray(
-											[
-												$elm$html$Html$text('Get')
-											])),
-										A2(
-										$elm$html$Html$button,
-										_List_fromArray(
-											[
-												$elm$html$Html$Events$onClick($author$project$Main$SetToLocalStorage)
-											]),
-										_List_fromArray(
-											[
-												$elm$html$Html$text('Set')
-											])),
-										A2(
-										$elm$html$Html$button,
-										_List_fromArray(
-											[
-												$elm$html$Html$Events$onClick($author$project$Main$ClearLocalStorage)
-											]),
-										_List_fromArray(
-											[
-												$elm$html$Html$text('Clear')
-											])),
-										A2(
-										$elm$html$Html$div,
-										_List_fromArray(
-											[
-												$elm$html$Html$Attributes$class('foobar')
-											]),
-										_List_Nil)
-									]))
-							]))
-					])),
-				A3(
-				$elm$html$Html$node,
-				'code-viewer',
-				_List_fromArray(
-					[
-						A2($elm$html$Html$Attributes$attribute, 'editor-value', model.sourceCode),
-						A2(
-						$elm$html$Html$Events$on,
-						'editorChanged',
-						A2(
-							$elm$json$Json$Decode$map,
-							$author$project$Main$UpdSourceCode,
+		_Utils_ap(
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$fieldset,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$disabled(model.waitingForJs)
+						]),
+					_List_fromArray(
+						[
 							A2(
-								$elm$json$Json$Decode$at,
-								_List_fromArray(
-									['detail', 'value']),
-								$elm$json$Json$Decode$string)))
-					]),
-				_List_Nil)
-			]));
+							$elm$html$Html$h1,
+							_List_Nil,
+							_List_fromArray(
+								[
+									$elm$html$Html$text(model.title)
+								])),
+							A3($author$project$Main$viewLabeledInput, 'Key', model.localStorageFormKey, $author$project$Main$UpdLocalStorageFormKey),
+							A3($author$project$Main$viewLabeledInput, 'Value', model.localStorageFormValue, $author$project$Main$UpdLocalStorageFormValue),
+							A2(
+							$elm$html$Html$p,
+							_List_fromArray(
+								[
+									$elm$html$Html$Attributes$class('row')
+								]),
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('spacer')
+										]),
+									_List_Nil),
+									A2(
+									$elm$html$Html$div,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$class('buttons')
+										]),
+									_List_fromArray(
+										[
+											A2(
+											$elm$html$Html$button,
+											_List_fromArray(
+												[
+													$elm$html$Html$Events$onClick($author$project$Main$GetFromLocalStorageReq)
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text('Get')
+												])),
+											A2(
+											$elm$html$Html$button,
+											_List_fromArray(
+												[
+													$elm$html$Html$Events$onClick($author$project$Main$SetToLocalStorage)
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text('Set')
+												])),
+											A2(
+											$elm$html$Html$button,
+											_List_fromArray(
+												[
+													$elm$html$Html$Events$onClick($author$project$Main$ClearLocalStorage)
+												]),
+											_List_fromArray(
+												[
+													$elm$html$Html$text('Clear')
+												])),
+											A2(
+											$elm$html$Html$div,
+											_List_fromArray(
+												[
+													$elm$html$Html$Attributes$class('foobar')
+												]),
+											_List_Nil)
+										]))
+								]))
+						]))
+				]),
+			$author$project$Main$viewSourceFiles(model.sourceFiles)));
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{init: $author$project$Main$init, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});
@@ -10820,10 +10851,25 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 		function (title) {
 			return A2(
 				$elm$json$Json$Decode$andThen,
-				function (sourceCode) {
+				function (sourceFiles) {
 					return $elm$json$Json$Decode$succeed(
-						{sourceCode: sourceCode, title: title});
+						{sourceFiles: sourceFiles, title: title});
 				},
-				A2($elm$json$Json$Decode$field, 'sourceCode', $elm$json$Json$Decode$string));
+				A2(
+					$elm$json$Json$Decode$field,
+					'sourceFiles',
+					$elm$json$Json$Decode$list(
+						A2(
+							$elm$json$Json$Decode$andThen,
+							function (name) {
+								return A2(
+									$elm$json$Json$Decode$andThen,
+									function (content) {
+										return $elm$json$Json$Decode$succeed(
+											{content: content, name: name});
+									},
+									A2($elm$json$Json$Decode$field, 'content', $elm$json$Json$Decode$string));
+							},
+							A2($elm$json$Json$Decode$field, 'name', $elm$json$Json$Decode$string)))));
 		},
-		A2($elm$json$Json$Decode$field, 'title', $elm$json$Json$Decode$string)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{},"unions":{"Main.Msg":{"args":[],"tags":{"UpdLocalStorageFormKey":["String.String"],"UpdLocalStorageFormValue":["String.String"],"GetFromLocalStorageReq":[],"GetFromLocalStorageResp":["String.String"],"SetToLocalStorage":[],"ClearLocalStorage":[],"UpdSourceCode":["String.String"]}},"String.String":{"args":[],"tags":{"String":[]}}}}})}});}(this));
+		A2($elm$json$Json$Decode$field, 'title', $elm$json$Json$Decode$string)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{},"unions":{"Main.Msg":{"args":[],"tags":{"UpdLocalStorageFormKey":["String.String"],"UpdLocalStorageFormValue":["String.String"],"GetFromLocalStorageReq":[],"GetFromLocalStorageResp":["String.String"],"SetToLocalStorage":[],"ClearLocalStorage":[],"UpdSourceCode":["Basics.Int","String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"String.String":{"args":[],"tags":{"String":[]}}}}})}});}(this));
