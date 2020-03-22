@@ -1,0 +1,144 @@
+@font-face {
+  font-family: "Iosevka Aile";
+  font-weight: 400;
+  src: url("./fonts/iosevka-aile/regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Iosevka Aile";
+  font-weight: 600;
+  src: url("./fonts/iosevka-aile/semibold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Iosevka Curly Extended";
+  font-weight: 400;
+  src: url("./fonts/iosevka-curly/extended.woff2") format("woff2");
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  padding: 1em;
+  color: #666;
+  font-family: "Iosevka Aile", sans-serif;
+  font-size: 11pt;
+}
+
+@media (min-width: 600px) {
+  body {
+    font-size: 14pt;
+  }
+}
+
+fieldset {
+  max-width: 600px;
+  box-sizing: border-box;
+  margin: auto;
+  margin-bottom: 1em;
+  border: 0;
+  padding: 1em;
+  padding-right: 3em;
+  box-shadow: 0 4px 8px 2px #0001;
+}
+
+@media (min-width: 1200px) {
+  fieldset {
+    max-width: 800px;
+  }
+}
+
+fieldset h1 {
+  margin: 0 0.333em;
+  padding-top: 0.667em;
+  padding-bottom: 1em;
+  font-size: 1.333em;
+  font-weight: 600;
+  color: #000;
+}
+
+fieldset .row {
+  display: flex;
+  align-items: baseline;
+}
+
+fieldset .row label {
+  flex: 1;
+  display: flex;
+}
+
+fieldset .row label .label {
+  flex: 1;
+  margin: 0 1em;
+  text-align: right;
+}
+
+fieldset .row input {
+  margin: unset;
+  border: unset;
+  padding: unset;
+  border-radius: unset;
+  outline: unset;
+  font: unset;
+  color: #000;
+
+  flex: 3;
+  padding-bottom: 2px;
+  border-bottom: 2px solid #0007;
+}
+
+fieldset .row input:focus {
+  border-bottom: 2px solid #00f7;
+}
+
+fieldset .row input:disabled {
+  color: #777;
+}
+
+fieldset .row .spacer {
+  flex: 1;
+  margin: 0 1em;
+}
+
+fieldset .buttons {
+  flex: 3;
+  display: flex;
+  margin-top: 1em;
+  margin-bottom: 0.333em;
+  color: #000;
+}
+
+fieldset .buttons button,
+fieldset .buttons .foobar {
+  flex: 1;
+}
+
+fieldset .buttons button {
+  margin: unset;
+  border: unset;
+  padding: unset;
+  font: unset;
+  color: unset;
+  background-color: unset;
+  outline: unset;
+
+  margin-right: 1.667em;
+  padding-bottom: 2px;
+  border-bottom: 2px solid #0007;
+  text-align: left;
+  cursor: pointer;
+}
+
+fieldset .buttons button:active {
+  color: #007;
+  border-bottom: 2px solid #00f7;
+}
+
+fieldset .buttons button:disabled {
+  color: #777;
+  cursor: unset;
+}

@@ -66,24 +66,26 @@ init flags =
 view : Model -> Html Msg
 view model =
     H.fieldset [ A.disabled model.waitingForJs ]
-        [ H.h3 [] [ H.text model.title ]
+        [ H.h1 [] [ H.text model.title ]
         , viewLabeledInput "Key" model.localStorageFormKey UpdLocalStorageFormKey
         , viewLabeledInput "Value" model.localStorageFormValue UpdLocalStorageFormValue
-        , H.p []
-            [ H.button [ E.onClick GetFromLocalStorageReq ] [ H.text "Get" ]
-            , H.text " "
-            , H.button [ E.onClick SetToLocalStorage ] [ H.text "Set" ]
-            , H.text " "
-            , H.button [ E.onClick ClearLocalStorage ] [ H.text "Clear" ]
+        , H.p [ A.class "row" ]
+            [ H.div [ A.class "spacer" ] []
+            , H.div [ A.class "buttons" ]
+                [ H.button [ E.onClick GetFromLocalStorageReq ] [ H.text "Get" ]
+                , H.button [ E.onClick SetToLocalStorage ] [ H.text "Set" ]
+                , H.button [ E.onClick ClearLocalStorage ] [ H.text "Clear" ]
+                , H.div [ A.class "foobar" ] []
+                ]
             ]
         ]
 
 
 viewLabeledInput : String -> String -> (String -> msg) -> Html msg
 viewLabeledInput label value msg =
-    H.p []
+    H.p [ A.class "row" ]
         [ H.label []
-            [ H.text (label ++ ": ")
+            [ H.span [ A.class "label" ] [ H.text (label ++ ":") ]
             , H.input [ A.value value, E.onInput msg ] []
             ]
         ]
