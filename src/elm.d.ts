@@ -1,5 +1,13 @@
+declare namespace Elm {
+  type App = {};
+}
+
 declare var Elm: {
   Main: {
-    init(options: { node: HTMLElement }): {};
+    init<Flags = void>(
+      options: { node: HTMLElement } & (Flags extends void
+        ? {}
+        : { flags: Flags })
+    ): Elm.App;
   };
 };

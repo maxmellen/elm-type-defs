@@ -5,5 +5,12 @@ document.body.appendChild(p);
 let elmDiv = document.createElement("div");
 document.body.appendChild(elmDiv);
 
-let app = Elm.Main.init({ node: elmDiv });
-console.log(app);
+interface Flags {
+  foo: string;
+  bar: number;
+}
+
+let app = Elm.Main.init<Flags>({
+  node: elmDiv,
+  flags: { foo: "foobar", bar: 42 }
+});
