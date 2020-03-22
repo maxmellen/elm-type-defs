@@ -7,6 +7,7 @@ type ElmInit = {
     outgoing: {
       localStorageGetReq: { key: string };
       localStorageSet: { key: string; value: string };
+      localStorageClear: null;
     };
   };
 };
@@ -27,4 +28,8 @@ app.ports.localStorageGetReq.subscribe(({ key }) => {
 
 app.ports.localStorageSet.subscribe(({ key, value }) => {
   localStorage.setItem(key, value);
+});
+
+app.ports.localStorageClear.subscribe(() => {
+  localStorage.clear();
 });

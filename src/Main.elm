@@ -15,6 +15,9 @@ port localStorageGetResp : ({ value : String } -> msg) -> Sub msg
 port localStorageSet : { key : String, value : String } -> Cmd msg
 
 
+port localStorageClear : () -> Cmd msg
+
+
 type alias Flags =
     { title : String
     }
@@ -34,6 +37,7 @@ type Msg
     | GetFromLocalStorageReq
     | GetFromLocalStorageResp String
     | SetToLocalStorage
+    | ClearLocalStorage
 
 
 main : Program Flags Model Msg
@@ -69,6 +73,8 @@ view model =
             [ H.button [ E.onClick GetFromLocalStorageReq ] [ H.text "Get" ]
             , H.text " "
             , H.button [ E.onClick SetToLocalStorage ] [ H.text "Set" ]
+            , H.text " "
+            , H.button [ E.onClick ClearLocalStorage ] [ H.text "Clear" ]
             ]
         ]
 
@@ -107,6 +113,9 @@ update msg model =
 
         SetToLocalStorage ->
             ( model, localStorageSet { key = currentKey, value = currentValue } )
+
+        ClearLocalStorage ->
+            ( { model | localStorageFormKey = "", localStorageFormValue = "" }, localStorageClear () )
 
 
 subscriptions : Model -> Sub Msg
