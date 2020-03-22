@@ -6,9 +6,10 @@
             this.editor = null;
             this.editorValue = "";
             this.readOnly = false;
+            this.mode = "";
         }
         static get observedAttributes() {
-            return ["editor-value", "read-only"];
+            return ["editor-value", "read-only", "mode"];
         }
         connectedCallback() {
             this.editor = CodeMirror(this, {
@@ -26,8 +27,7 @@
         attributeChangedCallback(name, _oldValue, newValue) {
             switch (name) {
                 case "editor-value":
-                    if (!newValue)
-                        return;
+                    newValue = newValue || "";
                     if (newValue === this.editorValue)
                         return;
                     this.editorValue = newValue;
@@ -39,11 +39,23 @@
                     break;
                 case "read-only":
                     let readOnly = !(newValue === null);
-                    if (this.readOnly === readOnly)
+                    if (readOnly === this.readOnly)
                         return;
+                    this.readOnly = readOnly;
                     if (!this.editor)
                         return;
                     this.editor.setOption("readOnly", readOnly);
+                    break;
+                case "mode":
+                    newValue = newValue || "";
+                    if (newValue === this.mode)
+                        return;
+                    this.mode = newValue;
+                    if (!this.editor)
+                        return;
+                    if (newValue === this.editor.getOption("mode"))
+                        return;
+                    this.editor.setOption("mode", newValue);
                     break;
                 default:
                     console.warn("Unexpected attribute name:", name);

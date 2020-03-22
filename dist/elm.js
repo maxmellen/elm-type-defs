@@ -10738,6 +10738,7 @@ var $author$project$Main$viewSourceFiles = $elm$core$List$indexedMap(
 						_List_fromArray(
 							[
 								A2($elm$html$Html$Attributes$attribute, 'editor-value', sourceFile.content),
+								A2($elm$html$Html$Attributes$attribute, 'mode', sourceFile.mode),
 								A2(
 								$elm$html$Html$Events$on,
 								'editorChanged',
@@ -10864,11 +10865,16 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 							function (name) {
 								return A2(
 									$elm$json$Json$Decode$andThen,
-									function (content) {
-										return $elm$json$Json$Decode$succeed(
-											{content: content, name: name});
+									function (mode) {
+										return A2(
+											$elm$json$Json$Decode$andThen,
+											function (content) {
+												return $elm$json$Json$Decode$succeed(
+													{content: content, mode: mode, name: name});
+											},
+											A2($elm$json$Json$Decode$field, 'content', $elm$json$Json$Decode$string));
 									},
-									A2($elm$json$Json$Decode$field, 'content', $elm$json$Json$Decode$string));
+									A2($elm$json$Json$Decode$field, 'mode', $elm$json$Json$Decode$string));
 							},
 							A2($elm$json$Json$Decode$field, 'name', $elm$json$Json$Decode$string)))));
 		},

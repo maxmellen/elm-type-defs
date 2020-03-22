@@ -1,8 +1,14 @@
 (() => {
+  type SourceFiles = {
+    name: string;
+    content: string;
+    mode: string;
+  };
+
   type ElmInit = {
     flags: {
       title: string;
-      sourceFiles: { name: string; content: string }[];
+      sourceFiles: SourceFiles[];
     };
     ports: {
       incoming: {
@@ -19,10 +25,22 @@
   let elmDiv = document.createElement("div");
   document.body.appendChild(elmDiv);
 
-  let sourceFiles = ["elm.d.ts", "main.ts"].map(name => {
-    let elementId = name.replace(/\./g, "-");
+  let sourceFiles = ["elm.d.ts", "main.ts", "Main.elm"].map(name => {
+    let extension = name.match(/\.(\w+)$/)![1];
+    console.log({ name, matches: name.match(/\.(\w+)$/), extension });
+    let mode = (() => {
+      switch (extension) {
+        case "ts":
+          return "javascript";
+        case "elm":
+          return "elm";
+        default:
+          throw new Error(`Unexpected file extension (.${extension}).`);
+      }
+    })();
+    let elementId = name.toLowerCase().replace(/\./g, "-");
     let content = readEmbeddedSourceCode(elementId);
-    return { name, content };
+    return { name, content, mode };
   });
 
   let app = Elm.Main!.init<ElmInit>({

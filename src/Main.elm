@@ -22,6 +22,7 @@ port localStorageClear : () -> Cmd msg
 type alias SourceFile =
     { name : String
     , content : String
+    , mode : String
     }
 
 
@@ -103,6 +104,7 @@ viewSourceFiles =
                 [ H.h3 [] [ H.text sourceFile.name ]
                 , H.node "code-viewer"
                     [ A.attribute "editor-value" sourceFile.content
+                    , A.attribute "mode" sourceFile.mode
                     , E.on "editorChanged" <| JD.map (UpdSourceCode index) <| JD.at [ "detail", "value" ] <| JD.string
                     ]
                     []
