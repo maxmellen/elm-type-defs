@@ -4,6 +4,7 @@ import Browser
 import Html as H exposing (Html)
 import Html.Attributes as A
 import Html.Events as E
+import Json.Decode as JD
 
 
 port localStorageGetReq : { key : String } -> Cmd msg
@@ -20,11 +21,13 @@ port localStorageClear : () -> Cmd msg
 
 type alias Flags =
     { title : String
+    , sourceCode : String
     }
 
 
 type alias Model =
     { title : String
+    , sourceCode : String
     , waitingForJs : Bool
     , localStorageFormKey : String
     , localStorageFormValue : String
@@ -38,6 +41,7 @@ type Msg
     | GetFromLocalStorageResp String
     | SetToLocalStorage
     | ClearLocalStorage
+    | UpdSourceCode String
 
 
 main : Program Flags Model Msg
@@ -55,6 +59,7 @@ init flags =
     let
         initialState =
             { title = flags.title
+            , sourceCode = flags.sourceCode
             , waitingForJs = False
             , localStorageFormKey = ""
             , localStorageFormValue = ""
@@ -65,19 +70,26 @@ init flags =
 
 view : Model -> Html Msg
 view model =
-    H.fieldset [ A.disabled model.waitingForJs ]
-        [ H.h1 [] [ H.text model.title ]
-        , viewLabeledInput "Key" model.localStorageFormKey UpdLocalStorageFormKey
-        , viewLabeledInput "Value" model.localStorageFormValue UpdLocalStorageFormValue
-        , H.p [ A.class "row" ]
-            [ H.div [ A.class "spacer" ] []
-            , H.div [ A.class "buttons" ]
-                [ H.button [ E.onClick GetFromLocalStorageReq ] [ H.text "Get" ]
-                , H.button [ E.onClick SetToLocalStorage ] [ H.text "Set" ]
-                , H.button [ E.onClick ClearLocalStorage ] [ H.text "Clear" ]
-                , H.div [ A.class "foobar" ] []
+    H.div []
+        [ H.fieldset [ A.disabled model.waitingForJs ]
+            [ H.h1 [] [ H.text model.title ]
+            , viewLabeledInput "Key" model.localStorageFormKey UpdLocalStorageFormKey
+            , viewLabeledInput "Value" model.localStorageFormValue UpdLocalStorageFormValue
+            , H.p [ A.class "row" ]
+                [ H.div [ A.class "spacer" ] []
+                , H.div [ A.class "buttons" ]
+                    [ H.button [ E.onClick GetFromLocalStorageReq ] [ H.text "Get" ]
+                    , H.button [ E.onClick SetToLocalStorage ] [ H.text "Set" ]
+                    , H.button [ E.onClick ClearLocalStorage ] [ H.text "Clear" ]
+                    , H.div [ A.class "foobar" ] []
+                    ]
                 ]
             ]
+        , H.node "code-viewer"
+            [ A.attribute "editor-value" model.sourceCode
+            , E.on "editorChanged" <| JD.map UpdSourceCode <| JD.at [ "detail", "value" ] JD.string
+            ]
+            []
         ]
 
 
@@ -118,6 +130,9 @@ update msg model =
 
         ClearLocalStorage ->
             ( { model | localStorageFormKey = "", localStorageFormValue = "" }, localStorageClear () )
+
+        UpdSourceCode newValue ->
+            ( { model | sourceCode = newValue }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg

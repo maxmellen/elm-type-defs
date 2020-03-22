@@ -4,10 +4,60 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Elm Type Definitions</title>
+    <link rel="stylesheet" href="./assets/codemirror/main.css" />
     <link rel="stylesheet" href="./assets/style.css" />
   </head>
   <body>
+    <script id="elm-d-ts" type="x-noparse-text/typescript">
+      declare namespace Elm {
+        type IncomingPorts<T> = {
+          [P in keyof T]: {
+            send(message: T[P]): void;
+          };
+        };
+
+        type OutgoingPorts<T> = {
+          [P in keyof T]: {
+            subscribe(handler: (message: T[P]) => void): void;
+            unsubscribe(handler: (message: T[P]) => void): void;
+          };
+        };
+
+        type Flags<T extends Init> = T extends Init<infer F> ? F : never;
+
+        type Ports<T extends Init> = T extends Init<any, infer In, infer Out>
+          ? IncomingPorts<In> & OutgoingPorts<Out>
+          : never;
+
+        type Init<Flags = void, In = {}, Out = {}> = (Flags extends void
+          ? {}
+          : { flags: Flags }) &
+          (keyof (IncomingPorts<In> & OutgoingPorts<Out>) extends never
+            ? {}
+            : {
+                ports: (keyof In extends never ? {} : { incoming: In }) &
+                  (keyof Out extends never ? {} : { outgoing: Out });
+              });
+
+        type App<Ports> = keyof Ports extends never ? {} : { ports: Ports };
+
+        type Module = {
+          init<T extends Init>(
+            options: { node: HTMLElement } & (Flags<T> extends void
+              ? {}
+              : { flags: Flags<T> })
+          ): App<Ports<T>>;
+        };
+      }
+
+      declare var Elm: {
+        [module: string]: Elm.Module | undefined;
+      };
+    </script>
+    <script src="./assets/codemirror/main.js"></script>
+    <script src="./assets/codemirror/javascript.js"></script>
     <script src="./dist/elm.js"></script>
+    <script src="./dist/CodeViewer.js"></script>
     <script src="./dist/main.js"></script>
   </body>
 </html>

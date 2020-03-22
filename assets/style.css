@@ -142,3 +142,29 @@ fieldset .buttons button:disabled {
   color: #777;
   cursor: unset;
 }
+
+code-viewer {
+  max-width: 600px;
+  box-sizing: border-box;
+  display: block;
+  margin: auto;
+  padding: 0.667em 1em;
+  box-shadow: 0 4px 8px 2px #0001;
+}
+
+@media (min-width: 1200px) {
+  code-viewer {
+    max-width: 800px;
+  }
+}
+
+code-viewer .CodeMirror {
+  font-family: "Iosevka Curly Extended", monospace;
+  font-size: 10pt;
+}
+
+@media (min-width: 600px) {
+  code-viewer .CodeMirror {
+    font-size: 12pt;
+  }
+}
