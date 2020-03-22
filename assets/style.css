@@ -35,6 +35,13 @@ body {
   }
 }
 
+@media (prefers-color-scheme: dark) {
+  body {
+    color: #eee;
+    background-color: #222;
+  }
+}
+
 fieldset {
   max-width: 600px;
   box-sizing: border-box;
@@ -52,6 +59,12 @@ fieldset {
   }
 }
 
+@media (prefers-color-scheme: dark) {
+  fieldset {
+    box-shadow: 0 4px 8px 2px #fff2;
+  }
+}
+
 fieldset h1 {
   margin: 0 0.333em;
   padding-top: 0.667em;
@@ -59,6 +72,12 @@ fieldset h1 {
   font-size: 1.333em;
   font-weight: 600;
   color: #000;
+}
+
+@media (prefers-color-scheme: dark) {
+  fieldset h1 {
+    color: #fff;
+  }
 }
 
 fieldset .row {
@@ -84,15 +103,29 @@ fieldset .row input {
   border-radius: unset;
   outline: unset;
   font: unset;
-  color: #000;
+  background-color: unset;
 
   flex: 3;
   padding-bottom: 2px;
   border-bottom: 2px solid #0007;
+  color: #000;
+}
+
+@media (prefers-color-scheme: dark) {
+  fieldset .row input {
+    color: #fff;
+    border-bottom: 2px solid #fff7;
+  }
 }
 
 fieldset .row input:focus {
   border-bottom: 2px solid #00f7;
+}
+
+@media (prefers-color-scheme: dark) {
+  fieldset .row input:focus {
+    border-bottom: 2px solid #77f;
+  }
 }
 
 fieldset .row input:disabled {
@@ -110,6 +143,12 @@ fieldset .buttons {
   margin-top: 1em;
   margin-bottom: 0.333em;
   color: #000;
+}
+
+@media (prefers-color-scheme: dark) {
+  fieldset .buttons {
+    color: #fff;
+  }
 }
 
 fieldset .buttons button,
@@ -133,9 +172,25 @@ fieldset .buttons button {
   cursor: pointer;
 }
 
+@media (prefers-color-scheme: dark) {
+  fieldset .buttons button {
+    color: #fff;
+    border-bottom: 2px solid #fff7;
+  }
+}
+
+/*#77f*/
+
 fieldset .buttons button:active {
   color: #007;
   border-bottom: 2px solid #00f7;
+}
+
+@media (prefers-color-scheme: dark) {
+  fieldset .buttons button:active {
+    color: #aaf;
+    border-bottom: 2px solid #77f;
+  }
 }
 
 fieldset .buttons button:disabled {
@@ -157,6 +212,12 @@ fieldset .buttons button:disabled {
   }
 }
 
+@media (prefers-color-scheme: dark) {
+  .codeViewerContainer {
+    box-shadow: 0 4px 8px 2px #fff2;
+  }
+}
+
 .codeViewerContainer h3 {
   margin: 0 1em;
   padding-top: 1em;
@@ -165,6 +226,13 @@ fieldset .buttons button:disabled {
   font-size: 1em;
   font-weight: 600;
   color: #000;
+}
+
+@media (prefers-color-scheme: dark) {
+  .codeViewerContainer h3 {
+    color: #fff;
+    border-bottom: 2px solid #fff7;
+  }
 }
 
 code-viewer {
@@ -180,5 +248,12 @@ code-viewer {
 @media (min-width: 600px) {
   .CodeMirror {
     font-size: 12pt;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .CodeMirror {
+    background-color: #ddd;
+    filter: invert(1) hue-rotate(180deg);
   }
 }
