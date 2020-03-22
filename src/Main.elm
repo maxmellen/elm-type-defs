@@ -4,7 +4,9 @@ import Browser
 import Html as H exposing (Html)
 import Html.Attributes as A
 import Html.Events as E
+import Http
 import Json.Decode as JD
+import Regex exposing (Regex)
 
 
 port localStorageGetReq : { key : String } -> Cmd msg
@@ -19,22 +21,24 @@ port localStorageSet : { key : String, value : String } -> Cmd msg
 port localStorageClear : () -> Cmd msg
 
 
-type alias SourceFile =
-    { name : String
-    , content : String
-    , mode : String
-    }
+type CodeView
+    = Loading { filename : String }
+    | Loaded
+        { filename : String
+        , contents : String
+        , mode : String
+        }
 
 
 type alias Flags =
     { title : String
-    , sourceFiles : List SourceFile
+    , filenames : List String
     }
 
 
 type alias Model =
     { title : String
-    , sourceFiles : List SourceFile
+    , codeViews : List CodeView
     , waitingForJs : Bool
     , localStorageFormKey : String
     , localStorageFormValue : String
@@ -48,6 +52,7 @@ type Msg
     | GetFromLocalStorageResp String
     | SetToLocalStorage
     | ClearLocalStorage
+    | GotSourceFile Int (Result Http.Error String)
     | UpdSourceCode Int String
 
 
@@ -64,15 +69,32 @@ main =
 init : Flags -> ( Model, Cmd Msg )
 init flags =
     let
+        codeViews =
+            flags.filenames
+                |> List.map (\name -> Loading { filename = name })
+
         initialState =
             { title = flags.title
-            , sourceFiles = flags.sourceFiles
+            , codeViews = codeViews
             , waitingForJs = False
             , localStorageFormKey = ""
             , localStorageFormValue = ""
             }
     in
-    ( initialState, Cmd.none )
+    ( initialState, Cmd.batch <| List.indexedMap getSourceFile codeViews )
+
+
+getSourceFile : Int -> CodeView -> Cmd Msg
+getSourceFile index codeView =
+    case codeView of
+        Loading { filename } ->
+            Http.get
+                { url = "./src/" ++ filename
+                , expect = Http.expectString <| GotSourceFile index
+                }
+
+        _ ->
+            Cmd.none
 
 
 view : Model -> Html Msg
@@ -93,22 +115,27 @@ view model =
                 ]
             ]
         ]
-            ++ viewSourceFiles model.sourceFiles
+            ++ viewCodeViews model.codeViews
 
 
-viewSourceFiles : List SourceFile -> List (Html Msg)
-viewSourceFiles =
+viewCodeViews : List CodeView -> List (Html Msg)
+viewCodeViews =
     List.indexedMap <|
-        \index sourceFile ->
-            H.div [ A.class "codeViewerContainer" ]
-                [ H.h3 [] [ H.text sourceFile.name ]
-                , H.node "code-viewer"
-                    [ A.attribute "editor-value" sourceFile.content
-                    , A.attribute "mode" sourceFile.mode
-                    , E.on "editorChanged" <| JD.map (UpdSourceCode index) <| JD.at [ "detail", "value" ] <| JD.string
-                    ]
-                    []
-                ]
+        \index codeView ->
+            case codeView of
+                Loaded { filename, contents, mode } ->
+                    H.div [ A.class "codeViewerContainer" ]
+                        [ H.h3 [] [ H.text filename ]
+                        , H.node "code-viewer"
+                            [ A.attribute "editor-value" contents
+                            , A.attribute "mode" mode
+                            , E.on "editorChanged" <| JD.map (UpdSourceCode index) <| JD.at [ "detail", "value" ] <| JD.string
+                            ]
+                            []
+                        ]
+
+                _ ->
+                    H.div [] []
 
 
 viewLabeledInput : String -> String -> (String -> msg) -> Html msg
@@ -149,20 +176,79 @@ update msg model =
         ClearLocalStorage ->
             ( { model | localStorageFormKey = "", localStorageFormValue = "" }, localStorageClear () )
 
-        UpdSourceCode updateIndex newContent ->
+        GotSourceFile updateIndex httpResult ->
+            let
+                updateByIndex contents =
+                    \index codeView ->
+                        case codeView of
+                            Loading { filename } ->
+                                if index == updateIndex then
+                                    Loaded { filename = filename, contents = contents, mode = inferMode filename }
+
+                                else
+                                    codeView
+
+                            _ ->
+                                codeView
+
+                updatedCodeViews =
+                    case httpResult of
+                        Ok sourceCode ->
+                            List.indexedMap (updateByIndex sourceCode) model.codeViews
+
+                        _ ->
+                            model.codeViews
+            in
+            ( { model | codeViews = updatedCodeViews }, Cmd.none )
+
+        UpdSourceCode updateIndex updatedContents ->
             let
                 updateByIndex =
-                    \index sourceFile ->
-                        if index == updateIndex then
-                            { sourceFile | content = newContent }
+                    \index codeView ->
+                        case codeView of
+                            Loaded loadedView ->
+                                if index == updateIndex then
+                                    Loaded { loadedView | contents = updatedContents }
 
-                        else
-                            sourceFile
+                                else
+                                    codeView
 
-                updatedSourceFiles =
-                    List.indexedMap updateByIndex model.sourceFiles
+                            _ ->
+                                codeView
+
+                updatedCodeViews =
+                    List.indexedMap updateByIndex model.codeViews
             in
-            ( { model | sourceFiles = updatedSourceFiles }, Cmd.none )
+            ( { model | codeViews = updatedCodeViews }, Cmd.none )
+
+
+inferMode : String -> String
+inferMode filename =
+    let
+        extension =
+            filename
+                |> Regex.find fileExtension
+                |> List.head
+                |> Maybe.map .submatches
+                |> Maybe.andThen List.head
+                |> Maybe.withDefault Nothing
+                |> Maybe.withDefault ""
+    in
+    case extension of
+        "ts" ->
+            "javascript"
+
+        "elm" ->
+            "elm"
+
+        _ ->
+            ""
+
+
+fileExtension : Regex
+fileExtension =
+    Regex.fromString "\\.(\\w+)$"
+        |> Maybe.withDefault Regex.never
 
 
 subscriptions : Model -> Sub Msg

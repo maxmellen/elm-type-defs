@@ -4938,6 +4938,282 @@ function _Browser_load(url)
 		}
 	}));
 }
+
+
+
+// SEND REQUEST
+
+var _Http_toTask = F3(function(router, toTask, request)
+{
+	return _Scheduler_binding(function(callback)
+	{
+		function done(response) {
+			callback(toTask(request.expect.a(response)));
+		}
+
+		var xhr = new XMLHttpRequest();
+		xhr.addEventListener('error', function() { done($elm$http$Http$NetworkError_); });
+		xhr.addEventListener('timeout', function() { done($elm$http$Http$Timeout_); });
+		xhr.addEventListener('load', function() { done(_Http_toResponse(request.expect.b, xhr)); });
+		$elm$core$Maybe$isJust(request.tracker) && _Http_track(router, xhr, request.tracker.a);
+
+		try {
+			xhr.open(request.method, request.url, true);
+		} catch (e) {
+			return done($elm$http$Http$BadUrl_(request.url));
+		}
+
+		_Http_configureRequest(xhr, request);
+
+		request.body.a && xhr.setRequestHeader('Content-Type', request.body.a);
+		xhr.send(request.body.b);
+
+		return function() { xhr.c = true; xhr.abort(); };
+	});
+});
+
+
+// CONFIGURE
+
+function _Http_configureRequest(xhr, request)
+{
+	for (var headers = request.headers; headers.b; headers = headers.b) // WHILE_CONS
+	{
+		xhr.setRequestHeader(headers.a.a, headers.a.b);
+	}
+	xhr.timeout = request.timeout.a || 0;
+	xhr.responseType = request.expect.d;
+	xhr.withCredentials = request.allowCookiesFromOtherDomains;
+}
+
+
+// RESPONSES
+
+function _Http_toResponse(toBody, xhr)
+{
+	return A2(
+		200 <= xhr.status && xhr.status < 300 ? $elm$http$Http$GoodStatus_ : $elm$http$Http$BadStatus_,
+		_Http_toMetadata(xhr),
+		toBody(xhr.response)
+	);
+}
+
+
+// METADATA
+
+function _Http_toMetadata(xhr)
+{
+	return {
+		url: xhr.responseURL,
+		statusCode: xhr.status,
+		statusText: xhr.statusText,
+		headers: _Http_parseHeaders(xhr.getAllResponseHeaders())
+	};
+}
+
+
+// HEADERS
+
+function _Http_parseHeaders(rawHeaders)
+{
+	if (!rawHeaders)
+	{
+		return $elm$core$Dict$empty;
+	}
+
+	var headers = $elm$core$Dict$empty;
+	var headerPairs = rawHeaders.split('\r\n');
+	for (var i = headerPairs.length; i--; )
+	{
+		var headerPair = headerPairs[i];
+		var index = headerPair.indexOf(': ');
+		if (index > 0)
+		{
+			var key = headerPair.substring(0, index);
+			var value = headerPair.substring(index + 2);
+
+			headers = A3($elm$core$Dict$update, key, function(oldValue) {
+				return $elm$core$Maybe$Just($elm$core$Maybe$isJust(oldValue)
+					? value + ', ' + oldValue.a
+					: value
+				);
+			}, headers);
+		}
+	}
+	return headers;
+}
+
+
+// EXPECT
+
+var _Http_expect = F3(function(type, toBody, toValue)
+{
+	return {
+		$: 0,
+		d: type,
+		b: toBody,
+		a: toValue
+	};
+});
+
+var _Http_mapExpect = F2(function(func, expect)
+{
+	return {
+		$: 0,
+		d: expect.d,
+		b: expect.b,
+		a: function(x) { return func(expect.a(x)); }
+	};
+});
+
+function _Http_toDataView(arrayBuffer)
+{
+	return new DataView(arrayBuffer);
+}
+
+
+// BODY and PARTS
+
+var _Http_emptyBody = { $: 0 };
+var _Http_pair = F2(function(a, b) { return { $: 0, a: a, b: b }; });
+
+function _Http_toFormData(parts)
+{
+	for (var formData = new FormData(); parts.b; parts = parts.b) // WHILE_CONS
+	{
+		var part = parts.a;
+		formData.append(part.a, part.b);
+	}
+	return formData;
+}
+
+var _Http_bytesToBlob = F2(function(mime, bytes)
+{
+	return new Blob([bytes], { type: mime });
+});
+
+
+// PROGRESS
+
+function _Http_track(router, xhr, tracker)
+{
+	// TODO check out lengthComputable on loadstart event
+
+	xhr.upload.addEventListener('progress', function(event) {
+		if (xhr.c) { return; }
+		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Sending({
+			sent: event.loaded,
+			size: event.total
+		}))));
+	});
+	xhr.addEventListener('progress', function(event) {
+		if (xhr.c) { return; }
+		_Scheduler_rawSpawn(A2($elm$core$Platform$sendToSelf, router, _Utils_Tuple2(tracker, $elm$http$Http$Receiving({
+			received: event.loaded,
+			size: event.lengthComputable ? $elm$core$Maybe$Just(event.total) : $elm$core$Maybe$Nothing
+		}))));
+	});
+}
+
+// CREATE
+
+var _Regex_never = /.^/;
+
+var _Regex_fromStringWith = F2(function(options, string)
+{
+	var flags = 'g';
+	if (options.multiline) { flags += 'm'; }
+	if (options.caseInsensitive) { flags += 'i'; }
+
+	try
+	{
+		return $elm$core$Maybe$Just(new RegExp(string, flags));
+	}
+	catch(error)
+	{
+		return $elm$core$Maybe$Nothing;
+	}
+});
+
+
+// USE
+
+var _Regex_contains = F2(function(re, string)
+{
+	return string.match(re) !== null;
+});
+
+
+var _Regex_findAtMost = F3(function(n, re, str)
+{
+	var out = [];
+	var number = 0;
+	var string = str;
+	var lastIndex = re.lastIndex;
+	var prevLastIndex = -1;
+	var result;
+	while (number++ < n && (result = re.exec(string)))
+	{
+		if (prevLastIndex == re.lastIndex) break;
+		var i = result.length - 1;
+		var subs = new Array(i);
+		while (i > 0)
+		{
+			var submatch = result[i];
+			subs[--i] = submatch
+				? $elm$core$Maybe$Just(submatch)
+				: $elm$core$Maybe$Nothing;
+		}
+		out.push(A4($elm$regex$Regex$Match, result[0], result.index, number, _List_fromArray(subs)));
+		prevLastIndex = re.lastIndex;
+	}
+	re.lastIndex = lastIndex;
+	return _List_fromArray(out);
+});
+
+
+var _Regex_replaceAtMost = F4(function(n, re, replacer, string)
+{
+	var count = 0;
+	function jsReplacer(match)
+	{
+		if (count++ >= n)
+		{
+			return match;
+		}
+		var i = arguments.length - 3;
+		var submatches = new Array(i);
+		while (i > 0)
+		{
+			var submatch = arguments[i];
+			submatches[--i] = submatch
+				? $elm$core$Maybe$Just(submatch)
+				: $elm$core$Maybe$Nothing;
+		}
+		return replacer(A4($elm$regex$Regex$Match, match, arguments[arguments.length - 2], count, _List_fromArray(submatches)));
+	}
+	return string.replace(re, jsReplacer);
+});
+
+var _Regex_splitAtMost = F3(function(n, re, str)
+{
+	var string = str;
+	var out = [];
+	var start = re.lastIndex;
+	var restoreLastIndex = re.lastIndex;
+	while (n--)
+	{
+		var result = re.exec(string);
+		if (!result) break;
+		out.push(string.slice(start, result.index));
+		start = re.lastIndex;
+	}
+	out.push(string.slice(start));
+	re.lastIndex = restoreLastIndex;
+	return _List_fromArray(out);
+});
+
+var _Regex_infinity = Infinity;
 var $elm$core$List$cons = _List_cons;
 var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
 var $elm$core$Array$foldr = F3(
@@ -10537,9 +10813,281 @@ var $elm$core$Basics$never = function (_v0) {
 	}
 };
 var $elm$browser$Browser$element = _Browser_element;
+var $author$project$Main$Loading = function (a) {
+	return {$: 'Loading', a: a};
+};
+var $author$project$Main$GotSourceFile = F2(
+	function (a, b) {
+		return {$: 'GotSourceFile', a: a, b: b};
+	});
+var $elm$http$Http$BadStatus_ = F2(
+	function (a, b) {
+		return {$: 'BadStatus_', a: a, b: b};
+	});
+var $elm$http$Http$BadUrl_ = function (a) {
+	return {$: 'BadUrl_', a: a};
+};
+var $elm$http$Http$GoodStatus_ = F2(
+	function (a, b) {
+		return {$: 'GoodStatus_', a: a, b: b};
+	});
+var $elm$http$Http$NetworkError_ = {$: 'NetworkError_'};
+var $elm$http$Http$Receiving = function (a) {
+	return {$: 'Receiving', a: a};
+};
+var $elm$http$Http$Sending = function (a) {
+	return {$: 'Sending', a: a};
+};
+var $elm$http$Http$Timeout_ = {$: 'Timeout_'};
+var $elm$core$Maybe$isJust = function (maybe) {
+	if (maybe.$ === 'Just') {
+		return true;
+	} else {
+		return false;
+	}
+};
+var $elm$core$Platform$sendToSelf = _Platform_sendToSelf;
+var $elm$http$Http$expectStringResponse = F2(
+	function (toMsg, toResult) {
+		return A3(
+			_Http_expect,
+			'',
+			$elm$core$Basics$identity,
+			A2($elm$core$Basics$composeR, toResult, toMsg));
+	});
+var $elm$http$Http$BadBody = function (a) {
+	return {$: 'BadBody', a: a};
+};
+var $elm$http$Http$BadStatus = function (a) {
+	return {$: 'BadStatus', a: a};
+};
+var $elm$http$Http$BadUrl = function (a) {
+	return {$: 'BadUrl', a: a};
+};
+var $elm$http$Http$NetworkError = {$: 'NetworkError'};
+var $elm$http$Http$Timeout = {$: 'Timeout'};
+var $elm$core$Result$mapError = F2(
+	function (f, result) {
+		if (result.$ === 'Ok') {
+			var v = result.a;
+			return $elm$core$Result$Ok(v);
+		} else {
+			var e = result.a;
+			return $elm$core$Result$Err(
+				f(e));
+		}
+	});
+var $elm$http$Http$resolve = F2(
+	function (toResult, response) {
+		switch (response.$) {
+			case 'BadUrl_':
+				var url = response.a;
+				return $elm$core$Result$Err(
+					$elm$http$Http$BadUrl(url));
+			case 'Timeout_':
+				return $elm$core$Result$Err($elm$http$Http$Timeout);
+			case 'NetworkError_':
+				return $elm$core$Result$Err($elm$http$Http$NetworkError);
+			case 'BadStatus_':
+				var metadata = response.a;
+				return $elm$core$Result$Err(
+					$elm$http$Http$BadStatus(metadata.statusCode));
+			default:
+				var body = response.b;
+				return A2(
+					$elm$core$Result$mapError,
+					$elm$http$Http$BadBody,
+					toResult(body));
+		}
+	});
+var $elm$http$Http$expectString = function (toMsg) {
+	return A2(
+		$elm$http$Http$expectStringResponse,
+		toMsg,
+		$elm$http$Http$resolve($elm$core$Result$Ok));
+};
+var $elm$http$Http$emptyBody = _Http_emptyBody;
+var $elm$http$Http$Request = function (a) {
+	return {$: 'Request', a: a};
+};
+var $elm$http$Http$State = F2(
+	function (reqs, subs) {
+		return {reqs: reqs, subs: subs};
+	});
+var $elm$http$Http$init = $elm$core$Task$succeed(
+	A2($elm$http$Http$State, $elm$core$Dict$empty, _List_Nil));
+var $elm$core$Process$kill = _Scheduler_kill;
+var $elm$core$Process$spawn = _Scheduler_spawn;
+var $elm$http$Http$updateReqs = F3(
+	function (router, cmds, reqs) {
+		updateReqs:
+		while (true) {
+			if (!cmds.b) {
+				return $elm$core$Task$succeed(reqs);
+			} else {
+				var cmd = cmds.a;
+				var otherCmds = cmds.b;
+				if (cmd.$ === 'Cancel') {
+					var tracker = cmd.a;
+					var _v2 = A2($elm$core$Dict$get, tracker, reqs);
+					if (_v2.$ === 'Nothing') {
+						var $temp$router = router,
+							$temp$cmds = otherCmds,
+							$temp$reqs = reqs;
+						router = $temp$router;
+						cmds = $temp$cmds;
+						reqs = $temp$reqs;
+						continue updateReqs;
+					} else {
+						var pid = _v2.a;
+						return A2(
+							$elm$core$Task$andThen,
+							function (_v3) {
+								return A3(
+									$elm$http$Http$updateReqs,
+									router,
+									otherCmds,
+									A2($elm$core$Dict$remove, tracker, reqs));
+							},
+							$elm$core$Process$kill(pid));
+					}
+				} else {
+					var req = cmd.a;
+					return A2(
+						$elm$core$Task$andThen,
+						function (pid) {
+							var _v4 = req.tracker;
+							if (_v4.$ === 'Nothing') {
+								return A3($elm$http$Http$updateReqs, router, otherCmds, reqs);
+							} else {
+								var tracker = _v4.a;
+								return A3(
+									$elm$http$Http$updateReqs,
+									router,
+									otherCmds,
+									A3($elm$core$Dict$insert, tracker, pid, reqs));
+							}
+						},
+						$elm$core$Process$spawn(
+							A3(
+								_Http_toTask,
+								router,
+								$elm$core$Platform$sendToApp(router),
+								req)));
+				}
+			}
+		}
+	});
+var $elm$http$Http$onEffects = F4(
+	function (router, cmds, subs, state) {
+		return A2(
+			$elm$core$Task$andThen,
+			function (reqs) {
+				return $elm$core$Task$succeed(
+					A2($elm$http$Http$State, reqs, subs));
+			},
+			A3($elm$http$Http$updateReqs, router, cmds, state.reqs));
+	});
+var $elm$http$Http$maybeSend = F4(
+	function (router, desiredTracker, progress, _v0) {
+		var actualTracker = _v0.a;
+		var toMsg = _v0.b;
+		return _Utils_eq(desiredTracker, actualTracker) ? $elm$core$Maybe$Just(
+			A2(
+				$elm$core$Platform$sendToApp,
+				router,
+				toMsg(progress))) : $elm$core$Maybe$Nothing;
+	});
+var $elm$http$Http$onSelfMsg = F3(
+	function (router, _v0, state) {
+		var tracker = _v0.a;
+		var progress = _v0.b;
+		return A2(
+			$elm$core$Task$andThen,
+			function (_v1) {
+				return $elm$core$Task$succeed(state);
+			},
+			$elm$core$Task$sequence(
+				A2(
+					$elm$core$List$filterMap,
+					A3($elm$http$Http$maybeSend, router, tracker, progress),
+					state.subs)));
+	});
+var $elm$http$Http$Cancel = function (a) {
+	return {$: 'Cancel', a: a};
+};
+var $elm$http$Http$cmdMap = F2(
+	function (func, cmd) {
+		if (cmd.$ === 'Cancel') {
+			var tracker = cmd.a;
+			return $elm$http$Http$Cancel(tracker);
+		} else {
+			var r = cmd.a;
+			return $elm$http$Http$Request(
+				{
+					allowCookiesFromOtherDomains: r.allowCookiesFromOtherDomains,
+					body: r.body,
+					expect: A2(_Http_mapExpect, func, r.expect),
+					headers: r.headers,
+					method: r.method,
+					timeout: r.timeout,
+					tracker: r.tracker,
+					url: r.url
+				});
+		}
+	});
+var $elm$http$Http$MySub = F2(
+	function (a, b) {
+		return {$: 'MySub', a: a, b: b};
+	});
+var $elm$http$Http$subMap = F2(
+	function (func, _v0) {
+		var tracker = _v0.a;
+		var toMsg = _v0.b;
+		return A2(
+			$elm$http$Http$MySub,
+			tracker,
+			A2($elm$core$Basics$composeR, toMsg, func));
+	});
+_Platform_effectManagers['Http'] = _Platform_createManager($elm$http$Http$init, $elm$http$Http$onEffects, $elm$http$Http$onSelfMsg, $elm$http$Http$cmdMap, $elm$http$Http$subMap);
+var $elm$http$Http$command = _Platform_leaf('Http');
+var $elm$http$Http$subscription = _Platform_leaf('Http');
+var $elm$http$Http$request = function (r) {
+	return $elm$http$Http$command(
+		$elm$http$Http$Request(
+			{allowCookiesFromOtherDomains: false, body: r.body, expect: r.expect, headers: r.headers, method: r.method, timeout: r.timeout, tracker: r.tracker, url: r.url}));
+};
+var $elm$http$Http$get = function (r) {
+	return $elm$http$Http$request(
+		{body: $elm$http$Http$emptyBody, expect: r.expect, headers: _List_Nil, method: 'GET', timeout: $elm$core$Maybe$Nothing, tracker: $elm$core$Maybe$Nothing, url: r.url});
+};
+var $author$project$Main$getSourceFile = F2(
+	function (index, codeView) {
+		if (codeView.$ === 'Loading') {
+			var filename = codeView.a.filename;
+			return $elm$http$Http$get(
+				{
+					expect: $elm$http$Http$expectString(
+						$author$project$Main$GotSourceFile(index)),
+					url: './src/' + filename
+				});
+		} else {
+			return $elm$core$Platform$Cmd$none;
+		}
+	});
 var $author$project$Main$init = function (flags) {
-	var initialState = {localStorageFormKey: '', localStorageFormValue: '', sourceFiles: flags.sourceFiles, title: flags.title, waitingForJs: false};
-	return _Utils_Tuple2(initialState, $elm$core$Platform$Cmd$none);
+	var codeViews = A2(
+		$elm$core$List$map,
+		function (name) {
+			return $author$project$Main$Loading(
+				{filename: name});
+		},
+		flags.filenames);
+	var initialState = {codeViews: codeViews, localStorageFormKey: '', localStorageFormValue: '', title: flags.title, waitingForJs: false};
+	return _Utils_Tuple2(
+		initialState,
+		$elm$core$Platform$Cmd$batch(
+			A2($elm$core$List$indexedMap, $author$project$Main$getSourceFile, codeViews)));
 };
 var $author$project$Main$GetFromLocalStorageResp = function (a) {
 	return {$: 'GetFromLocalStorageResp', a: a};
@@ -10559,6 +11107,80 @@ var $author$project$Main$subscriptions = $elm$core$Basics$always(
 			var value = _v0.value;
 			return $author$project$Main$GetFromLocalStorageResp(value);
 		}));
+var $author$project$Main$Loaded = function (a) {
+	return {$: 'Loaded', a: a};
+};
+var $elm$core$Maybe$andThen = F2(
+	function (callback, maybeValue) {
+		if (maybeValue.$ === 'Just') {
+			var value = maybeValue.a;
+			return callback(value);
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $elm$regex$Regex$Match = F4(
+	function (match, index, number, submatches) {
+		return {index: index, match: match, number: number, submatches: submatches};
+	});
+var $elm$regex$Regex$fromStringWith = _Regex_fromStringWith;
+var $elm$regex$Regex$fromString = function (string) {
+	return A2(
+		$elm$regex$Regex$fromStringWith,
+		{caseInsensitive: false, multiline: false},
+		string);
+};
+var $elm$regex$Regex$never = _Regex_never;
+var $author$project$Main$fileExtension = A2(
+	$elm$core$Maybe$withDefault,
+	$elm$regex$Regex$never,
+	$elm$regex$Regex$fromString('\\.(\\w+)$'));
+var $elm$regex$Regex$find = _Regex_findAtMost(_Regex_infinity);
+var $elm$core$List$head = function (list) {
+	if (list.b) {
+		var x = list.a;
+		var xs = list.b;
+		return $elm$core$Maybe$Just(x);
+	} else {
+		return $elm$core$Maybe$Nothing;
+	}
+};
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
+			return $elm$core$Maybe$Just(
+				f(value));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
+var $author$project$Main$inferMode = function (filename) {
+	var extension = A2(
+		$elm$core$Maybe$withDefault,
+		'',
+		A2(
+			$elm$core$Maybe$withDefault,
+			$elm$core$Maybe$Nothing,
+			A2(
+				$elm$core$Maybe$andThen,
+				$elm$core$List$head,
+				A2(
+					$elm$core$Maybe$map,
+					function ($) {
+						return $.submatches;
+					},
+					$elm$core$List$head(
+						A2($elm$regex$Regex$find, $author$project$Main$fileExtension, filename))))));
+	switch (extension) {
+		case 'ts':
+			return 'javascript';
+		case 'elm':
+			return 'elm';
+		default:
+			return '';
+	}
+};
 var $elm$json$Json$Encode$null = _Json_encodeNull;
 var $author$project$Main$localStorageClear = _Platform_outgoingPort(
 	'localStorageClear',
@@ -10634,20 +11256,61 @@ var $author$project$Main$update = F2(
 						model,
 						{localStorageFormKey: '', localStorageFormValue: ''}),
 					$author$project$Main$localStorageClear(_Utils_Tuple0));
-			default:
+			case 'GotSourceFile':
 				var updateIndex = msg.a;
-				var newContent = msg.b;
-				var updateByIndex = F2(
-					function (index, sourceFile) {
-						return _Utils_eq(index, updateIndex) ? _Utils_update(
-							sourceFile,
-							{content: newContent}) : sourceFile;
-					});
-				var updatedSourceFiles = A2($elm$core$List$indexedMap, updateByIndex, model.sourceFiles);
+				var httpResult = msg.b;
+				var updateByIndex = function (contents) {
+					return F2(
+						function (index, codeView) {
+							if (codeView.$ === 'Loading') {
+								var filename = codeView.a.filename;
+								return _Utils_eq(index, updateIndex) ? $author$project$Main$Loaded(
+									{
+										contents: contents,
+										filename: filename,
+										mode: $author$project$Main$inferMode(filename)
+									}) : codeView;
+							} else {
+								return codeView;
+							}
+						});
+				};
+				var updatedCodeViews = function () {
+					if (httpResult.$ === 'Ok') {
+						var sourceCode = httpResult.a;
+						return A2(
+							$elm$core$List$indexedMap,
+							updateByIndex(sourceCode),
+							model.codeViews);
+					} else {
+						return model.codeViews;
+					}
+				}();
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{sourceFiles: updatedSourceFiles}),
+						{codeViews: updatedCodeViews}),
+					$elm$core$Platform$Cmd$none);
+			default:
+				var updateIndex = msg.a;
+				var updatedContents = msg.b;
+				var updateByIndex = F2(
+					function (index, codeView) {
+						if (codeView.$ === 'Loaded') {
+							var loadedView = codeView.a;
+							return _Utils_eq(index, updateIndex) ? $author$project$Main$Loaded(
+								_Utils_update(
+									loadedView,
+									{contents: updatedContents})) : codeView;
+						} else {
+							return codeView;
+						}
+					});
+				var updatedCodeViews = A2($elm$core$List$indexedMap, updateByIndex, model.codeViews);
+				return _Utils_Tuple2(
+					_Utils_update(
+						model,
+						{codeViews: updatedCodeViews}),
 					$elm$core$Platform$Cmd$none);
 		}
 	});
@@ -10671,6 +11334,59 @@ var $elm$html$Html$Attributes$boolProperty = F2(
 var $elm$html$Html$Attributes$disabled = $elm$html$Html$Attributes$boolProperty('disabled');
 var $elm$html$Html$fieldset = _VirtualDom_node('fieldset');
 var $elm$html$Html$h1 = _VirtualDom_node('h1');
+var $author$project$Main$UpdSourceCode = F2(
+	function (a, b) {
+		return {$: 'UpdSourceCode', a: a, b: b};
+	});
+var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
+var $elm$html$Html$h3 = _VirtualDom_node('h3');
+var $author$project$Main$viewCodeViews = $elm$core$List$indexedMap(
+	F2(
+		function (index, codeView) {
+			if (codeView.$ === 'Loaded') {
+				var filename = codeView.a.filename;
+				var contents = codeView.a.contents;
+				var mode = codeView.a.mode;
+				return A2(
+					$elm$html$Html$div,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$class('codeViewerContainer')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$h3,
+							_List_Nil,
+							_List_fromArray(
+								[
+									$elm$html$Html$text(filename)
+								])),
+							A3(
+							$elm$html$Html$node,
+							'code-viewer',
+							_List_fromArray(
+								[
+									A2($elm$html$Html$Attributes$attribute, 'editor-value', contents),
+									A2($elm$html$Html$Attributes$attribute, 'mode', mode),
+									A2(
+									$elm$html$Html$Events$on,
+									'editorChanged',
+									A2(
+										$elm$json$Json$Decode$map,
+										$author$project$Main$UpdSourceCode(index),
+										A2(
+											$elm$json$Json$Decode$at,
+											_List_fromArray(
+												['detail', 'value']),
+											$elm$json$Json$Decode$string)))
+								]),
+							_List_Nil)
+						]));
+			} else {
+				return A2($elm$html$Html$div, _List_Nil, _List_Nil);
+			}
+		}));
 var $elm$html$Html$label = _VirtualDom_node('label');
 var $author$project$Main$viewLabeledInput = F3(
 	function (label, value, msg) {
@@ -10708,52 +11424,6 @@ var $author$project$Main$viewLabeledInput = F3(
 						]))
 				]));
 	});
-var $author$project$Main$UpdSourceCode = F2(
-	function (a, b) {
-		return {$: 'UpdSourceCode', a: a, b: b};
-	});
-var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
-var $elm$html$Html$h3 = _VirtualDom_node('h3');
-var $author$project$Main$viewSourceFiles = $elm$core$List$indexedMap(
-	F2(
-		function (index, sourceFile) {
-			return A2(
-				$elm$html$Html$div,
-				_List_fromArray(
-					[
-						$elm$html$Html$Attributes$class('codeViewerContainer')
-					]),
-				_List_fromArray(
-					[
-						A2(
-						$elm$html$Html$h3,
-						_List_Nil,
-						_List_fromArray(
-							[
-								$elm$html$Html$text(sourceFile.name)
-							])),
-						A3(
-						$elm$html$Html$node,
-						'code-viewer',
-						_List_fromArray(
-							[
-								A2($elm$html$Html$Attributes$attribute, 'editor-value', sourceFile.content),
-								A2($elm$html$Html$Attributes$attribute, 'mode', sourceFile.mode),
-								A2(
-								$elm$html$Html$Events$on,
-								'editorChanged',
-								A2(
-									$elm$json$Json$Decode$map,
-									$author$project$Main$UpdSourceCode(index),
-									A2(
-										$elm$json$Json$Decode$at,
-										_List_fromArray(
-											['detail', 'value']),
-										$elm$json$Json$Decode$string)))
-							]),
-						_List_Nil)
-					]));
-		}));
 var $author$project$Main$view = function (model) {
 	return A2(
 		$elm$html$Html$div,
@@ -10842,7 +11512,7 @@ var $author$project$Main$view = function (model) {
 								]))
 						]))
 				]),
-			$author$project$Main$viewSourceFiles(model.sourceFiles)));
+			$author$project$Main$viewCodeViews(model.codeViews)));
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{init: $author$project$Main$init, subscriptions: $author$project$Main$subscriptions, update: $author$project$Main$update, view: $author$project$Main$view});
@@ -10852,30 +11522,13 @@ _Platform_export({'Main':{'init':$author$project$Main$main(
 		function (title) {
 			return A2(
 				$elm$json$Json$Decode$andThen,
-				function (sourceFiles) {
+				function (filenames) {
 					return $elm$json$Json$Decode$succeed(
-						{sourceFiles: sourceFiles, title: title});
+						{filenames: filenames, title: title});
 				},
 				A2(
 					$elm$json$Json$Decode$field,
-					'sourceFiles',
-					$elm$json$Json$Decode$list(
-						A2(
-							$elm$json$Json$Decode$andThen,
-							function (name) {
-								return A2(
-									$elm$json$Json$Decode$andThen,
-									function (mode) {
-										return A2(
-											$elm$json$Json$Decode$andThen,
-											function (content) {
-												return $elm$json$Json$Decode$succeed(
-													{content: content, mode: mode, name: name});
-											},
-											A2($elm$json$Json$Decode$field, 'content', $elm$json$Json$Decode$string));
-									},
-									A2($elm$json$Json$Decode$field, 'mode', $elm$json$Json$Decode$string));
-							},
-							A2($elm$json$Json$Decode$field, 'name', $elm$json$Json$Decode$string)))));
+					'filenames',
+					$elm$json$Json$Decode$list($elm$json$Json$Decode$string)));
 		},
-		A2($elm$json$Json$Decode$field, 'title', $elm$json$Json$Decode$string)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{},"unions":{"Main.Msg":{"args":[],"tags":{"UpdLocalStorageFormKey":["String.String"],"UpdLocalStorageFormValue":["String.String"],"GetFromLocalStorageReq":[],"GetFromLocalStorageResp":["String.String"],"SetToLocalStorage":[],"ClearLocalStorage":[],"UpdSourceCode":["Basics.Int","String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"String.String":{"args":[],"tags":{"String":[]}}}}})}});}(this));
+		A2($elm$json$Json$Decode$field, 'title', $elm$json$Json$Decode$string)))({"versions":{"elm":"0.19.1"},"types":{"message":"Main.Msg","aliases":{},"unions":{"Main.Msg":{"args":[],"tags":{"UpdLocalStorageFormKey":["String.String"],"UpdLocalStorageFormValue":["String.String"],"GetFromLocalStorageReq":[],"GetFromLocalStorageResp":["String.String"],"SetToLocalStorage":[],"ClearLocalStorage":[],"GotSourceFile":["Basics.Int","Result.Result Http.Error String.String"],"UpdSourceCode":["Basics.Int","String.String"]}},"Http.Error":{"args":[],"tags":{"BadUrl":["String.String"],"Timeout":[],"NetworkError":[],"BadStatus":["Basics.Int"],"BadBody":["String.String"]}},"Basics.Int":{"args":[],"tags":{"Int":[]}},"Result.Result":{"args":["error","value"],"tags":{"Ok":["value"],"Err":["error"]}},"String.String":{"args":[],"tags":{"String":[]}}}}})}});}(this));
