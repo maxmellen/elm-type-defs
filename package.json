@@ -3,7 +3,7 @@
   "scripts": {
     "build": "run-p 'build:*'",
     "build:tsc": "tsc",
-    "build:elm": "elm make --output=dist/elm.js src/Main.elm"
+    "build:elm": "elm make --debug --output=dist/elm.js src/Main.elm"
   },
   "dependencies": {
     "elm": "^0.19.1-3",
