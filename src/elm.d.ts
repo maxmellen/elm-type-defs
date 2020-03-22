@@ -12,19 +12,33 @@ declare namespace Elm {
     };
   };
 
-  type Ports<In, Out> = IncomingPorts<In> & OutgoingPorts<Out>;
+  type Flags<T extends Init> = T extends Init<infer F> ? F : never;
 
-  type App<In, Out> = keyof Ports<In, Out> extends never
+  type Ports<T extends Init> = T extends Init<any, infer In, infer Out>
+    ? IncomingPorts<In> & OutgoingPorts<Out>
+    : never;
+
+  type Init<Flags = void, In = {}, Out = {}> = (Flags extends void
     ? {}
-    : { ports: Ports<In, Out> };
+    : { flags: Flags }) &
+    (keyof (IncomingPorts<In> & OutgoingPorts<Out>) extends never
+      ? {}
+      : {
+          ports: (keyof In extends never ? {} : { incoming: In }) &
+            (keyof Out extends never ? {} : { outgoing: Out });
+        });
+
+  type App<Ports> = keyof Ports extends never ? {} : { ports: Ports };
+
+  type Module = {
+    init<T extends Init>(
+      options: { node: HTMLElement } & (Flags<T> extends void
+        ? {}
+        : { flags: Flags<T> })
+    ): App<Ports<T>>;
+  };
 }
 
 declare var Elm: {
-  Main: {
-    init<Flags = void, IncomingPorts = {}, OutgoingPorts = {}>(
-      options: { node: HTMLElement } & (Flags extends void
-        ? {}
-        : { flags: Flags })
-    ): Elm.App<IncomingPorts, OutgoingPorts>;
-  };
+  [module: string]: Elm.Module | undefined;
 };

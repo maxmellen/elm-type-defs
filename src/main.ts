@@ -1,27 +1,20 @@
-interface Flags {
-  title: string;
-}
-
-type IncomingPorts = {
-  localStorageGetResp: {
-    value: string;
-  };
-};
-
-type OutgoingPorts = {
-  localStorageGetReq: {
-    key: string;
-  };
-  localStorageSet: {
-    key: string;
-    value: string;
+type ElmInit = {
+  flags: { title: string };
+  ports: {
+    incoming: {
+      localStorageGetResp: { value: string };
+    };
+    outgoing: {
+      localStorageGetReq: { key: string };
+      localStorageSet: { key: string; value: string };
+    };
   };
 };
 
 let elmDiv = document.createElement("div");
 document.body.appendChild(elmDiv);
 
-let app = Elm.Main.init<Flags, IncomingPorts, OutgoingPorts>({
+let app = Elm.Main!.init<ElmInit>({
   node: elmDiv,
   flags: { title: "Elm Type Definitions" }
 });
