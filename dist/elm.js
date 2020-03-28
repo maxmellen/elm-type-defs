@@ -10813,7 +10813,7 @@ var $elm$core$Basics$never = function (_v0) {
 	}
 };
 var $elm$browser$Browser$element = _Browser_element;
-var $author$project$Main$Loading = function (a) {
+var $author$project$Data$CodeView$Loading = function (a) {
 	return {$: 'Loading', a: a};
 };
 var $author$project$Main$GotSourceFile = F2(
@@ -11079,7 +11079,7 @@ var $author$project$Main$init = function (flags) {
 	var codeViews = A2(
 		$elm$core$List$map,
 		function (name) {
-			return $author$project$Main$Loading(
+			return $author$project$Data$CodeView$Loading(
 				{filename: name});
 		},
 		flags.filenames);
@@ -11107,7 +11107,7 @@ var $author$project$Main$subscriptions = $elm$core$Basics$always(
 			var value = _v0.value;
 			return $author$project$Main$GetFromLocalStorageResp(value);
 		}));
-var $author$project$Main$Loaded = function (a) {
+var $author$project$Data$CodeView$Loaded = function (a) {
 	return {$: 'Loaded', a: a};
 };
 var $elm$core$Maybe$andThen = F2(
@@ -11131,7 +11131,7 @@ var $elm$regex$Regex$fromString = function (string) {
 		string);
 };
 var $elm$regex$Regex$never = _Regex_never;
-var $author$project$Main$fileExtensionRegex = A2(
+var $author$project$Data$CodeView$fileExtensionRegex = A2(
 	$elm$core$Maybe$withDefault,
 	$elm$regex$Regex$never,
 	$elm$regex$Regex$fromString('\\.(\\w+)$'));
@@ -11145,7 +11145,7 @@ var $elm$core$List$head = function (list) {
 		return $elm$core$Maybe$Nothing;
 	}
 };
-var $author$project$Main$inferMode = function (filename) {
+var $author$project$Data$CodeView$inferMode = function (filename) {
 	var extension = A2(
 		$elm$core$Maybe$withDefault,
 		'',
@@ -11162,7 +11162,7 @@ var $author$project$Main$inferMode = function (filename) {
 					$elm$core$Maybe$withDefault($elm$core$Maybe$Nothing))),
 			A3(
 				$elm$core$Basics$composeR,
-				$elm$regex$Regex$find($author$project$Main$fileExtensionRegex),
+				$elm$regex$Regex$find($author$project$Data$CodeView$fileExtensionRegex),
 				$elm$core$List$head,
 				filename)));
 	switch (extension) {
@@ -11174,15 +11174,15 @@ var $author$project$Main$inferMode = function (filename) {
 			return '';
 	}
 };
-var $author$project$Main$loadCodeView = F2(
+var $author$project$Data$CodeView$load = F2(
 	function (contents, codeView) {
 		if (codeView.$ === 'Loading') {
 			var filename = codeView.a.filename;
-			return $author$project$Main$Loaded(
+			return $author$project$Data$CodeView$Loaded(
 				{
 					contents: contents,
 					filename: filename,
-					mode: $author$project$Main$inferMode(filename)
+					mode: $author$project$Data$CodeView$inferMode(filename)
 				});
 		} else {
 			return codeView;
@@ -11230,21 +11230,13 @@ var $elm$core$Result$map = F2(
 			return $elm$core$Result$Err(e);
 		}
 	});
-var $author$project$Main$updateByIndex = F2(
-	function (f, i) {
-		return $elm$core$List$indexedMap(
-			F2(
-				function (i_, a) {
-					return _Utils_eq(i_, i) ? f(a) : a;
-				}));
-	});
-var $author$project$Main$updateCodeView = F2(
+var $author$project$Data$CodeView$update = F2(
 	function (f, codeView) {
 		if (codeView.$ === 'Loaded') {
 			var filename = codeView.a.filename;
 			var contents = codeView.a.contents;
 			var mode = codeView.a.mode;
-			return $author$project$Main$Loaded(
+			return $author$project$Data$CodeView$Loaded(
 				{
 					contents: f(contents),
 					filename: filename,
@@ -11253,6 +11245,14 @@ var $author$project$Main$updateCodeView = F2(
 		} else {
 			return codeView;
 		}
+	});
+var $author$project$Main$updateByIndex = F2(
+	function (f, i) {
+		return $elm$core$List$indexedMap(
+			F2(
+				function (i_, a) {
+					return _Utils_eq(i_, i) ? f(a) : a;
+				}));
 	});
 var $elm$core$Result$withDefault = F2(
 	function (def, result) {
@@ -11316,7 +11316,7 @@ var $author$project$Main$update = F2(
 						function (contents) {
 							return A3(
 								$author$project$Main$updateByIndex,
-								$author$project$Main$loadCodeView(contents),
+								$author$project$Data$CodeView$load(contents),
 								index,
 								model.codeViews);
 						},
@@ -11331,7 +11331,7 @@ var $author$project$Main$update = F2(
 				var contents = msg.b;
 				var codeViews = A3(
 					$author$project$Main$updateByIndex,
-					$author$project$Main$updateCodeView(
+					$author$project$Data$CodeView$update(
 						$elm$core$Basics$always(contents)),
 					index,
 					model.codeViews);
@@ -11368,7 +11368,7 @@ var $author$project$Main$UpdSourceCode = F2(
 	});
 var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
 var $elm$html$Html$h3 = _VirtualDom_node('h3');
-var $author$project$Main$mapCodeView = F2(
+var $author$project$Data$CodeView$map = F2(
 	function (f, codeView) {
 		if (codeView.$ === 'Loaded') {
 			var filename = codeView.a.filename;
@@ -11388,7 +11388,7 @@ var $author$project$Main$viewCodeViews = $elm$core$List$indexedMap(
 				$elm$core$Maybe$withDefault,
 				A2($elm$html$Html$div, _List_Nil, _List_Nil),
 				A2(
-					$author$project$Main$mapCodeView,
+					$author$project$Data$CodeView$map,
 					function (_v0) {
 						var filename = _v0.a;
 						var contents = _v0.b;

@@ -1,12 +1,12 @@
 port module Main exposing (main)
 
 import Browser
+import Data.CodeView as CodeView exposing (CodeView)
 import Html as H exposing (Html)
 import Html.Attributes as A
 import Html.Events as E
 import Http
 import Json.Decode as JD
-import Regex exposing (Regex)
 
 
 port localStorageGetReq : { key : String } -> Cmd msg
@@ -19,15 +19,6 @@ port localStorageSet : { key : String, value : String } -> Cmd msg
 
 
 port localStorageClear : () -> Cmd msg
-
-
-type CodeView
-    = Loading { filename : String }
-    | Loaded
-        { filename : String
-        , contents : String
-        , mode : String
-        }
 
 
 type alias Flags =
@@ -71,7 +62,7 @@ init flags =
     let
         codeViews =
             flags.filenames
-                |> List.map (\name -> Loading { filename = name })
+                |> List.map (\name -> CodeView.Loading { filename = name })
 
         initialState =
             { title = flags.title
@@ -130,7 +121,7 @@ update msg model =
             let
                 codeViews =
                     result
-                        |> Result.map (\contents -> updateByIndex (loadCodeView contents) index model.codeViews)
+                        |> Result.map (\contents -> updateByIndex (CodeView.load contents) index model.codeViews)
                         |> Result.withDefault model.codeViews
             in
             ( { model | codeViews = codeViews }, Cmd.none )
@@ -138,7 +129,7 @@ update msg model =
         UpdSourceCode index contents ->
             let
                 codeViews =
-                    updateByIndex (updateCodeView <| always contents) index model.codeViews
+                    updateByIndex (CodeView.update <| always contents) index model.codeViews
             in
             ( { model | codeViews = codeViews }, Cmd.none )
 
@@ -151,7 +142,7 @@ subscriptions =
 getSourceFile : Int -> CodeView -> Cmd Msg
 getSourceFile index codeView =
     case codeView of
-        Loading { filename } ->
+        CodeView.Loading { filename } ->
             Http.get
                 { url = "./src/" ++ filename
                 , expect = Http.expectString <| GotSourceFile index
@@ -176,7 +167,7 @@ viewCodeViews =
     List.indexedMap <|
         \index codeView ->
             codeView
-                |> mapCodeView
+                |> CodeView.map
                     (\( filename, contents, mode ) ->
                         H.div [ A.class "codeViewerContainer" ]
                             [ H.h3 [] [ H.text filename ]
@@ -203,67 +194,3 @@ updateByIndex f i =
 
             else
                 a
-
-
-loadCodeView : String -> CodeView -> CodeView
-loadCodeView contents codeView =
-    case codeView of
-        Loading { filename } ->
-            Loaded
-                { filename = filename
-                , contents = contents
-                , mode = inferMode filename
-                }
-
-        _ ->
-            codeView
-
-
-updateCodeView : (String -> String) -> CodeView -> CodeView
-updateCodeView f codeView =
-    case codeView of
-        Loaded { filename, contents, mode } ->
-            Loaded
-                { filename = filename
-                , contents = f contents
-                , mode = mode
-                }
-
-        _ ->
-            codeView
-
-
-mapCodeView : (( String, String, String ) -> a) -> CodeView -> Maybe a
-mapCodeView f codeView =
-    case codeView of
-        Loaded { filename, contents, mode } ->
-            Just <| f ( filename, contents, mode )
-
-        _ ->
-            Nothing
-
-
-inferMode : String -> String
-inferMode filename =
-    let
-        extension =
-            filename
-                |> (Regex.find fileExtensionRegex >> List.head)
-                |> Maybe.andThen (.submatches >> List.head >> Maybe.withDefault Nothing)
-                |> Maybe.withDefault ""
-    in
-    case extension of
-        "ts" ->
-            "javascript"
-
-        "elm" ->
-            "elm"
-
-        _ ->
-            ""
-
-
-fileExtensionRegex : Regex
-fileExtensionRegex =
-    Regex.fromString "\\.(\\w+)$"
-        |> Maybe.withDefault Regex.never
