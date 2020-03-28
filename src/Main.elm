@@ -6,8 +6,8 @@ import Html as H exposing (Html)
 import Html.Attributes as A
 import Html.Events as E
 import Http
-import Json.Decode as JD
 import Ports.LocalStorage as LocalStorage
+import Views.CodeViewer as CodeViewer
 
 
 type alias Flags =
@@ -109,9 +109,12 @@ update msg model =
         GotSourceFile index result ->
             let
                 codeViews =
-                    result
-                        |> Result.map (\contents -> updateByIndex (CodeView.load contents) index model.codeViews)
-                        |> Result.withDefault model.codeViews
+                    case result of
+                        Ok contents ->
+                            updateByIndex (CodeView.load contents) index model.codeViews
+
+                        Err _ ->
+                            updateByIndex (CodeView.error "File not found.") index model.codeViews
             in
             ( { model | codeViews = codeViews }, Cmd.none )
 
@@ -155,23 +158,33 @@ viewCodeViews : List CodeView -> List (Html Msg)
 viewCodeViews =
     List.indexedMap <|
         \index codeView ->
-            codeView
-                |> CodeView.map
-                    (\( filename, contents, mode ) ->
-                        H.div [ A.class "codeViewerContainer" ]
-                            [ H.h3 [] [ H.text filename ]
-                            , H.node "code-viewer"
-                                [ A.attribute "editor-value" contents
-                                , A.attribute "mode" mode
-                                , E.on "editorChanged" <|
-                                    JD.map (UpdSourceCode index) <|
-                                        JD.at [ "detail", "value" ] <|
-                                            JD.string
-                                ]
-                                []
-                            ]
-                    )
-                |> Maybe.withDefault (H.div [] [])
+            case codeView of
+                CodeView.Loading { filename } ->
+                    CodeViewer.view
+                        { title = filename
+                        , editorValue = "Loading..."
+                        , mode = Nothing
+                        , readOnly = True
+                        , onChanged = Nothing
+                        }
+
+                CodeView.Loaded { filename, contents, mode } ->
+                    CodeViewer.view
+                        { title = filename
+                        , editorValue = contents
+                        , mode = Just mode
+                        , readOnly = False
+                        , onChanged = Just <| UpdSourceCode index
+                        }
+
+                CodeView.Errored { filename, message } ->
+                    CodeViewer.view
+                        { title = filename
+                        , editorValue = message
+                        , mode = Nothing
+                        , readOnly = True
+                        , onChanged = Nothing
+                        }
 
 
 updateByIndex : (a -> a) -> Int -> List a -> List a

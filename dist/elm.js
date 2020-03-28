@@ -11117,6 +11117,26 @@ var $author$project$Ports$LocalStorage$localStorageClear = _Platform_outgoingPor
 		return $elm$json$Json$Encode$null;
 	});
 var $author$project$Ports$LocalStorage$clear = $author$project$Ports$LocalStorage$localStorageClear(_Utils_Tuple0);
+var $author$project$Data$CodeView$Errored = function (a) {
+	return {$: 'Errored', a: a};
+};
+var $author$project$Data$CodeView$error = F2(
+	function (message, codeView) {
+		var errored = function (filename) {
+			return $author$project$Data$CodeView$Errored(
+				{filename: filename, message: message});
+		};
+		switch (codeView.$) {
+			case 'Loading':
+				var filename = codeView.a.filename;
+				return errored(filename);
+			case 'Loaded':
+				var filename = codeView.a.filename;
+				return errored(filename);
+			default:
+				return codeView;
+		}
+	});
 var $author$project$Ports$LocalStorage$localStorageGetReq = _Platform_outgoingPort(
 	'localStorageGetReq',
 	function ($) {
@@ -11213,17 +11233,6 @@ var $author$project$Data$CodeView$load = F2(
 			return codeView;
 		}
 	});
-var $elm$core$Result$map = F2(
-	function (func, ra) {
-		if (ra.$ === 'Ok') {
-			var a = ra.a;
-			return $elm$core$Result$Ok(
-				func(a));
-		} else {
-			var e = ra.a;
-			return $elm$core$Result$Err(e);
-		}
-	});
 var $author$project$Ports$LocalStorage$localStorageSet = _Platform_outgoingPort(
 	'localStorageSet',
 	function ($) {
@@ -11266,15 +11275,6 @@ var $author$project$Main$updateByIndex = F2(
 				function (i_, a) {
 					return _Utils_eq(i_, i) ? f(a) : a;
 				}));
-	});
-var $elm$core$Result$withDefault = F2(
-	function (def, result) {
-		if (result.$ === 'Ok') {
-			var a = result.a;
-			return a;
-		} else {
-			return def;
-		}
 	});
 var $author$project$Main$update = F2(
 	function (msg, model) {
@@ -11319,19 +11319,22 @@ var $author$project$Main$update = F2(
 			case 'GotSourceFile':
 				var index = msg.a;
 				var result = msg.b;
-				var codeViews = A2(
-					$elm$core$Result$withDefault,
-					model.codeViews,
-					A2(
-						$elm$core$Result$map,
-						function (contents) {
-							return A3(
-								$author$project$Main$updateByIndex,
-								$author$project$Data$CodeView$load(contents),
-								index,
-								model.codeViews);
-						},
-						result));
+				var codeViews = function () {
+					if (result.$ === 'Ok') {
+						var contents = result.a;
+						return A3(
+							$author$project$Main$updateByIndex,
+							$author$project$Data$CodeView$load(contents),
+							index,
+							model.codeViews);
+					} else {
+						return A3(
+							$author$project$Main$updateByIndex,
+							$author$project$Data$CodeView$error('File not found.'),
+							index,
+							model.codeViews);
+					}
+				}();
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
@@ -11379,69 +11382,97 @@ var $author$project$Main$UpdSourceCode = F2(
 	});
 var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
 var $elm$html$Html$h3 = _VirtualDom_node('h3');
-var $author$project$Data$CodeView$map = F2(
-	function (f, codeView) {
-		if (codeView.$ === 'Loaded') {
-			var filename = codeView.a.filename;
-			var contents = codeView.a.contents;
-			var mode = codeView.a.mode;
+var $elm$core$Maybe$map = F2(
+	function (f, maybe) {
+		if (maybe.$ === 'Just') {
+			var value = maybe.a;
 			return $elm$core$Maybe$Just(
-				f(
-					_Utils_Tuple3(filename, contents, mode)));
+				f(value));
 		} else {
 			return $elm$core$Maybe$Nothing;
 		}
 	});
+var $elm$core$List$singleton = function (value) {
+	return _List_fromArray(
+		[value]);
+};
+var $author$project$Views$CodeViewer$view = function (attributes) {
+	var onChangeAttrs = A2(
+		$elm$core$Maybe$withDefault,
+		_List_Nil,
+		A2(
+			$elm$core$Maybe$map,
+			$elm$core$List$singleton,
+			A2(
+				$elm$core$Maybe$map,
+				function (onChanged) {
+					return A2(
+						$elm$html$Html$Events$on,
+						'editorChanged',
+						A2(
+							$elm$json$Json$Decode$map,
+							onChanged,
+							A2(
+								$elm$json$Json$Decode$at,
+								_List_fromArray(
+									['detail', 'value']),
+								$elm$json$Json$Decode$string)));
+				},
+				attributes.onChanged)));
+	var baseAttrs = _List_fromArray(
+		[
+			A2($elm$html$Html$Attributes$attribute, 'editor-value', attributes.editorValue),
+			A2(
+			$elm$html$Html$Attributes$attribute,
+			'mode',
+			A2($elm$core$Maybe$withDefault, '', attributes.mode))
+		]);
+	var attrs = _Utils_ap(baseAttrs, onChangeAttrs);
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				$elm$html$Html$Attributes$class('codeViewerContainer')
+			]),
+		_List_fromArray(
+			[
+				A2(
+				$elm$html$Html$h3,
+				_List_Nil,
+				_List_fromArray(
+					[
+						$elm$html$Html$text(attributes.title)
+					])),
+				A3($elm$html$Html$node, 'code-viewer', attrs, _List_Nil)
+			]));
+};
 var $author$project$Main$viewCodeViews = $elm$core$List$indexedMap(
 	F2(
 		function (index, codeView) {
-			return A2(
-				$elm$core$Maybe$withDefault,
-				A2($elm$html$Html$div, _List_Nil, _List_Nil),
-				A2(
-					$author$project$Data$CodeView$map,
-					function (_v0) {
-						var filename = _v0.a;
-						var contents = _v0.b;
-						var mode = _v0.c;
-						return A2(
-							$elm$html$Html$div,
-							_List_fromArray(
-								[
-									$elm$html$Html$Attributes$class('codeViewerContainer')
-								]),
-							_List_fromArray(
-								[
-									A2(
-									$elm$html$Html$h3,
-									_List_Nil,
-									_List_fromArray(
-										[
-											$elm$html$Html$text(filename)
-										])),
-									A3(
-									$elm$html$Html$node,
-									'code-viewer',
-									_List_fromArray(
-										[
-											A2($elm$html$Html$Attributes$attribute, 'editor-value', contents),
-											A2($elm$html$Html$Attributes$attribute, 'mode', mode),
-											A2(
-											$elm$html$Html$Events$on,
-											'editorChanged',
-											A2(
-												$elm$json$Json$Decode$map,
-												$author$project$Main$UpdSourceCode(index),
-												A2(
-													$elm$json$Json$Decode$at,
-													_List_fromArray(
-														['detail', 'value']),
-													$elm$json$Json$Decode$string)))
-										]),
-									_List_Nil)
-								]));
-					},
-					codeView));
+			switch (codeView.$) {
+				case 'Loading':
+					var filename = codeView.a.filename;
+					return $author$project$Views$CodeViewer$view(
+						{editorValue: 'Loading...', mode: $elm$core$Maybe$Nothing, onChanged: $elm$core$Maybe$Nothing, readOnly: true, title: filename});
+				case 'Loaded':
+					var filename = codeView.a.filename;
+					var contents = codeView.a.contents;
+					var mode = codeView.a.mode;
+					return $author$project$Views$CodeViewer$view(
+						{
+							editorValue: contents,
+							mode: $elm$core$Maybe$Just(mode),
+							onChanged: $elm$core$Maybe$Just(
+								$author$project$Main$UpdSourceCode(index)),
+							readOnly: false,
+							title: filename
+						});
+				default:
+					var filename = codeView.a.filename;
+					var message = codeView.a.message;
+					return $author$project$Views$CodeViewer$view(
+						{editorValue: message, mode: $elm$core$Maybe$Nothing, onChanged: $elm$core$Maybe$Nothing, readOnly: true, title: filename});
+			}
 		}));
 var $elm$html$Html$label = _VirtualDom_node('label');
 var $author$project$Main$viewLabeledInput = F3(

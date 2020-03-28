@@ -23,7 +23,7 @@
     node: elmDiv,
     flags: {
       title: "Elm Type Definitions",
-      filenames: ["elm.d.ts", "main.ts", "Main.elm"]
+      filenames: ["elm.d.ts", "main.ts", "Main.elm", "not_found.txt"]
     }
   });
 

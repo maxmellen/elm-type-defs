@@ -1,4 +1,4 @@
-module Data.CodeView exposing (CodeView(..), load, map, update)
+module Data.CodeView exposing (CodeView(..), error, load, update)
 
 import Regex exposing (Regex)
 
@@ -9,6 +9,10 @@ type CodeView
         { filename : String
         , contents : String
         , mode : String
+        }
+    | Errored
+        { filename : String
+        , message : String
         }
 
 
@@ -26,6 +30,23 @@ load contents codeView =
             codeView
 
 
+error : String -> CodeView -> CodeView
+error message codeView =
+    let
+        errored filename =
+            Errored { filename = filename, message = message }
+    in
+    case codeView of
+        Loading { filename } ->
+            errored filename
+
+        Loaded { filename } ->
+            errored filename
+
+        _ ->
+            codeView
+
+
 update : (String -> String) -> CodeView -> CodeView
 update f codeView =
     case codeView of
@@ -38,16 +59,6 @@ update f codeView =
 
         _ ->
             codeView
-
-
-map : (( String, String, String ) -> a) -> CodeView -> Maybe a
-map f codeView =
-    case codeView of
-        Loaded { filename, contents, mode } ->
-            Just <| f ( filename, contents, mode )
-
-        _ ->
-            Nothing
 
 
 inferMode : String -> String
