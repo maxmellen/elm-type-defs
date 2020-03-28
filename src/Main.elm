@@ -1,4 +1,4 @@
-port module Main exposing (main)
+module Main exposing (main)
 
 import Browser
 import Data.CodeView as CodeView exposing (CodeView)
@@ -7,18 +7,7 @@ import Html.Attributes as A
 import Html.Events as E
 import Http
 import Json.Decode as JD
-
-
-port localStorageGetReq : { key : String } -> Cmd msg
-
-
-port localStorageGetResp : ({ value : String } -> msg) -> Sub msg
-
-
-port localStorageSet : { key : String, value : String } -> Cmd msg
-
-
-port localStorageClear : () -> Cmd msg
+import Ports.LocalStorage as LocalStorage
 
 
 type alias Flags =
@@ -106,16 +95,16 @@ update msg model =
             ( { model | localStorageFormValue = value }, Cmd.none )
 
         GetFromLocalStorageReq ->
-            ( { model | waitingForJs = True }, localStorageGetReq { key = model.localStorageFormKey } )
+            ( { model | waitingForJs = True }, LocalStorage.getReq model.localStorageFormKey )
 
         GetFromLocalStorageResp newValue ->
             ( { model | waitingForJs = False, localStorageFormValue = newValue }, Cmd.none )
 
         SetToLocalStorage ->
-            ( model, localStorageSet { key = model.localStorageFormKey, value = model.localStorageFormValue } )
+            ( model, LocalStorage.set model.localStorageFormKey model.localStorageFormValue )
 
         ClearLocalStorage ->
-            ( { model | localStorageFormKey = "", localStorageFormValue = "" }, localStorageClear () )
+            ( { model | localStorageFormKey = "", localStorageFormValue = "" }, LocalStorage.clear )
 
         GotSourceFile index result ->
             let
@@ -136,7 +125,7 @@ update msg model =
 
 subscriptions : Model -> Sub Msg
 subscriptions =
-    always <| localStorageGetResp (\{ value } -> GetFromLocalStorageResp value)
+    always <| LocalStorage.getResp GetFromLocalStorageResp
 
 
 getSourceFile : Int -> CodeView -> Cmd Msg

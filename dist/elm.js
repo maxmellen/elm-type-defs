@@ -11092,7 +11092,7 @@ var $author$project$Main$init = function (flags) {
 var $author$project$Main$GetFromLocalStorageResp = function (a) {
 	return {$: 'GetFromLocalStorageResp', a: a};
 };
-var $author$project$Main$localStorageGetResp = _Platform_incomingPort(
+var $author$project$Ports$LocalStorage$localStorageGetResp = _Platform_incomingPort(
 	'localStorageGetResp',
 	A2(
 		$elm$json$Json$Decode$andThen,
@@ -11101,12 +11101,37 @@ var $author$project$Main$localStorageGetResp = _Platform_incomingPort(
 				{value: value});
 		},
 		A2($elm$json$Json$Decode$field, 'value', $elm$json$Json$Decode$string)));
-var $author$project$Main$subscriptions = $elm$core$Basics$always(
-	$author$project$Main$localStorageGetResp(
+var $author$project$Ports$LocalStorage$getResp = function (handleResp) {
+	return $author$project$Ports$LocalStorage$localStorageGetResp(
 		function (_v0) {
 			var value = _v0.value;
-			return $author$project$Main$GetFromLocalStorageResp(value);
-		}));
+			return handleResp(value);
+		});
+};
+var $author$project$Main$subscriptions = $elm$core$Basics$always(
+	$author$project$Ports$LocalStorage$getResp($author$project$Main$GetFromLocalStorageResp));
+var $elm$json$Json$Encode$null = _Json_encodeNull;
+var $author$project$Ports$LocalStorage$localStorageClear = _Platform_outgoingPort(
+	'localStorageClear',
+	function ($) {
+		return $elm$json$Json$Encode$null;
+	});
+var $author$project$Ports$LocalStorage$clear = $author$project$Ports$LocalStorage$localStorageClear(_Utils_Tuple0);
+var $author$project$Ports$LocalStorage$localStorageGetReq = _Platform_outgoingPort(
+	'localStorageGetReq',
+	function ($) {
+		return $elm$json$Json$Encode$object(
+			_List_fromArray(
+				[
+					_Utils_Tuple2(
+					'key',
+					$elm$json$Json$Encode$string($.key))
+				]));
+	});
+var $author$project$Ports$LocalStorage$getReq = function (key) {
+	return $author$project$Ports$LocalStorage$localStorageGetReq(
+		{key: key});
+};
 var $author$project$Data$CodeView$Loaded = function (a) {
 	return {$: 'Loaded', a: a};
 };
@@ -11188,24 +11213,18 @@ var $author$project$Data$CodeView$load = F2(
 			return codeView;
 		}
 	});
-var $elm$json$Json$Encode$null = _Json_encodeNull;
-var $author$project$Main$localStorageClear = _Platform_outgoingPort(
-	'localStorageClear',
-	function ($) {
-		return $elm$json$Json$Encode$null;
+var $elm$core$Result$map = F2(
+	function (func, ra) {
+		if (ra.$ === 'Ok') {
+			var a = ra.a;
+			return $elm$core$Result$Ok(
+				func(a));
+		} else {
+			var e = ra.a;
+			return $elm$core$Result$Err(e);
+		}
 	});
-var $author$project$Main$localStorageGetReq = _Platform_outgoingPort(
-	'localStorageGetReq',
-	function ($) {
-		return $elm$json$Json$Encode$object(
-			_List_fromArray(
-				[
-					_Utils_Tuple2(
-					'key',
-					$elm$json$Json$Encode$string($.key))
-				]));
-	});
-var $author$project$Main$localStorageSet = _Platform_outgoingPort(
+var $author$project$Ports$LocalStorage$localStorageSet = _Platform_outgoingPort(
 	'localStorageSet',
 	function ($) {
 		return $elm$json$Json$Encode$object(
@@ -11219,16 +11238,10 @@ var $author$project$Main$localStorageSet = _Platform_outgoingPort(
 					$elm$json$Json$Encode$string($.value))
 				]));
 	});
-var $elm$core$Result$map = F2(
-	function (func, ra) {
-		if (ra.$ === 'Ok') {
-			var a = ra.a;
-			return $elm$core$Result$Ok(
-				func(a));
-		} else {
-			var e = ra.a;
-			return $elm$core$Result$Err(e);
-		}
+var $author$project$Ports$LocalStorage$set = F2(
+	function (key, value) {
+		return $author$project$Ports$LocalStorage$localStorageSet(
+			{key: key, value: value});
 	});
 var $author$project$Data$CodeView$update = F2(
 	function (f, codeView) {
@@ -11285,8 +11298,7 @@ var $author$project$Main$update = F2(
 					_Utils_update(
 						model,
 						{waitingForJs: true}),
-					$author$project$Main$localStorageGetReq(
-						{key: model.localStorageFormKey}));
+					$author$project$Ports$LocalStorage$getReq(model.localStorageFormKey));
 			case 'GetFromLocalStorageResp':
 				var newValue = msg.a;
 				return _Utils_Tuple2(
@@ -11297,14 +11309,13 @@ var $author$project$Main$update = F2(
 			case 'SetToLocalStorage':
 				return _Utils_Tuple2(
 					model,
-					$author$project$Main$localStorageSet(
-						{key: model.localStorageFormKey, value: model.localStorageFormValue}));
+					A2($author$project$Ports$LocalStorage$set, model.localStorageFormKey, model.localStorageFormValue));
 			case 'ClearLocalStorage':
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
 						{localStorageFormKey: '', localStorageFormValue: ''}),
-					$author$project$Main$localStorageClear(_Utils_Tuple0));
+					$author$project$Ports$LocalStorage$clear);
 			case 'GotSourceFile':
 				var index = msg.a;
 				var result = msg.b;
