@@ -11131,7 +11131,7 @@ var $elm$regex$Regex$fromString = function (string) {
 		string);
 };
 var $elm$regex$Regex$never = _Regex_never;
-var $author$project$Main$fileExtension = A2(
+var $author$project$Main$fileExtensionRegex = A2(
 	$elm$core$Maybe$withDefault,
 	$elm$regex$Regex$never,
 	$elm$regex$Regex$fromString('\\.(\\w+)$'));
@@ -11145,33 +11145,26 @@ var $elm$core$List$head = function (list) {
 		return $elm$core$Maybe$Nothing;
 	}
 };
-var $elm$core$Maybe$map = F2(
-	function (f, maybe) {
-		if (maybe.$ === 'Just') {
-			var value = maybe.a;
-			return $elm$core$Maybe$Just(
-				f(value));
-		} else {
-			return $elm$core$Maybe$Nothing;
-		}
-	});
 var $author$project$Main$inferMode = function (filename) {
 	var extension = A2(
 		$elm$core$Maybe$withDefault,
 		'',
 		A2(
-			$elm$core$Maybe$withDefault,
-			$elm$core$Maybe$Nothing,
+			$elm$core$Maybe$andThen,
 			A2(
-				$elm$core$Maybe$andThen,
-				$elm$core$List$head,
+				$elm$core$Basics$composeR,
+				function ($) {
+					return $.submatches;
+				},
 				A2(
-					$elm$core$Maybe$map,
-					function ($) {
-						return $.submatches;
-					},
-					$elm$core$List$head(
-						A2($elm$regex$Regex$find, $author$project$Main$fileExtension, filename))))));
+					$elm$core$Basics$composeR,
+					$elm$core$List$head,
+					$elm$core$Maybe$withDefault($elm$core$Maybe$Nothing))),
+			A3(
+				$elm$core$Basics$composeR,
+				$elm$regex$Regex$find($author$project$Main$fileExtensionRegex),
+				$elm$core$List$head,
+				filename)));
 	switch (extension) {
 		case 'ts':
 			return 'javascript';
@@ -11181,6 +11174,20 @@ var $author$project$Main$inferMode = function (filename) {
 			return '';
 	}
 };
+var $author$project$Main$loadCodeView = F2(
+	function (contents, codeView) {
+		if (codeView.$ === 'Loading') {
+			var filename = codeView.a.filename;
+			return $author$project$Main$Loaded(
+				{
+					contents: contents,
+					filename: filename,
+					mode: $author$project$Main$inferMode(filename)
+				});
+		} else {
+			return codeView;
+		}
+	});
 var $elm$json$Json$Encode$null = _Json_encodeNull;
 var $author$project$Main$localStorageClear = _Platform_outgoingPort(
 	'localStorageClear',
@@ -11212,24 +11219,66 @@ var $author$project$Main$localStorageSet = _Platform_outgoingPort(
 					$elm$json$Json$Encode$string($.value))
 				]));
 	});
+var $elm$core$Result$map = F2(
+	function (func, ra) {
+		if (ra.$ === 'Ok') {
+			var a = ra.a;
+			return $elm$core$Result$Ok(
+				func(a));
+		} else {
+			var e = ra.a;
+			return $elm$core$Result$Err(e);
+		}
+	});
+var $author$project$Main$updateByIndex = F2(
+	function (f, i) {
+		return $elm$core$List$indexedMap(
+			F2(
+				function (i_, a) {
+					return _Utils_eq(i_, i) ? f(a) : a;
+				}));
+	});
+var $author$project$Main$updateCodeView = F2(
+	function (f, codeView) {
+		if (codeView.$ === 'Loaded') {
+			var filename = codeView.a.filename;
+			var contents = codeView.a.contents;
+			var mode = codeView.a.mode;
+			return $author$project$Main$Loaded(
+				{
+					contents: f(contents),
+					filename: filename,
+					mode: mode
+				});
+		} else {
+			return codeView;
+		}
+	});
+var $elm$core$Result$withDefault = F2(
+	function (def, result) {
+		if (result.$ === 'Ok') {
+			var a = result.a;
+			return a;
+		} else {
+			return def;
+		}
+	});
 var $author$project$Main$update = F2(
 	function (msg, model) {
-		var currentValue = model.localStorageFormValue;
-		var currentKey = model.localStorageFormKey;
 		switch (msg.$) {
 			case 'UpdLocalStorageFormKey':
-				var newKey = msg.a;
+				var key = msg.a;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{localStorageFormKey: newKey}),
+						{localStorageFormKey: key}),
 					$elm$core$Platform$Cmd$none);
 			case 'UpdLocalStorageFormValue':
-				var newValue = msg.a;
+				var value = msg.a;
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{localStorageFormValue: newValue}),
+						{localStorageFormValue: value}),
 					$elm$core$Platform$Cmd$none);
 			case 'GetFromLocalStorageReq':
 				return _Utils_Tuple2(
@@ -11237,7 +11286,7 @@ var $author$project$Main$update = F2(
 						model,
 						{waitingForJs: true}),
 					$author$project$Main$localStorageGetReq(
-						{key: currentKey}));
+						{key: model.localStorageFormKey}));
 			case 'GetFromLocalStorageResp':
 				var newValue = msg.a;
 				return _Utils_Tuple2(
@@ -11249,7 +11298,7 @@ var $author$project$Main$update = F2(
 				return _Utils_Tuple2(
 					model,
 					$author$project$Main$localStorageSet(
-						{key: currentKey, value: currentValue}));
+						{key: model.localStorageFormKey, value: model.localStorageFormValue}));
 			case 'ClearLocalStorage':
 				return _Utils_Tuple2(
 					_Utils_update(
@@ -11257,60 +11306,39 @@ var $author$project$Main$update = F2(
 						{localStorageFormKey: '', localStorageFormValue: ''}),
 					$author$project$Main$localStorageClear(_Utils_Tuple0));
 			case 'GotSourceFile':
-				var updateIndex = msg.a;
-				var httpResult = msg.b;
-				var updateByIndex = function (contents) {
-					return F2(
-						function (index, codeView) {
-							if (codeView.$ === 'Loading') {
-								var filename = codeView.a.filename;
-								return _Utils_eq(index, updateIndex) ? $author$project$Main$Loaded(
-									{
-										contents: contents,
-										filename: filename,
-										mode: $author$project$Main$inferMode(filename)
-									}) : codeView;
-							} else {
-								return codeView;
-							}
-						});
-				};
-				var updatedCodeViews = function () {
-					if (httpResult.$ === 'Ok') {
-						var sourceCode = httpResult.a;
-						return A2(
-							$elm$core$List$indexedMap,
-							updateByIndex(sourceCode),
-							model.codeViews);
-					} else {
-						return model.codeViews;
-					}
-				}();
+				var index = msg.a;
+				var result = msg.b;
+				var codeViews = A2(
+					$elm$core$Result$withDefault,
+					model.codeViews,
+					A2(
+						$elm$core$Result$map,
+						function (contents) {
+							return A3(
+								$author$project$Main$updateByIndex,
+								$author$project$Main$loadCodeView(contents),
+								index,
+								model.codeViews);
+						},
+						result));
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{codeViews: updatedCodeViews}),
+						{codeViews: codeViews}),
 					$elm$core$Platform$Cmd$none);
 			default:
-				var updateIndex = msg.a;
-				var updatedContents = msg.b;
-				var updateByIndex = F2(
-					function (index, codeView) {
-						if (codeView.$ === 'Loaded') {
-							var loadedView = codeView.a;
-							return _Utils_eq(index, updateIndex) ? $author$project$Main$Loaded(
-								_Utils_update(
-									loadedView,
-									{contents: updatedContents})) : codeView;
-						} else {
-							return codeView;
-						}
-					});
-				var updatedCodeViews = A2($elm$core$List$indexedMap, updateByIndex, model.codeViews);
+				var index = msg.a;
+				var contents = msg.b;
+				var codeViews = A3(
+					$author$project$Main$updateByIndex,
+					$author$project$Main$updateCodeView(
+						$elm$core$Basics$always(contents)),
+					index,
+					model.codeViews);
 				return _Utils_Tuple2(
 					_Utils_update(
 						model,
-						{codeViews: updatedCodeViews}),
+						{codeViews: codeViews}),
 					$elm$core$Platform$Cmd$none);
 		}
 	});
@@ -11340,52 +11368,69 @@ var $author$project$Main$UpdSourceCode = F2(
 	});
 var $elm$html$Html$Attributes$attribute = $elm$virtual_dom$VirtualDom$attribute;
 var $elm$html$Html$h3 = _VirtualDom_node('h3');
+var $author$project$Main$mapCodeView = F2(
+	function (f, codeView) {
+		if (codeView.$ === 'Loaded') {
+			var filename = codeView.a.filename;
+			var contents = codeView.a.contents;
+			var mode = codeView.a.mode;
+			return $elm$core$Maybe$Just(
+				f(
+					_Utils_Tuple3(filename, contents, mode)));
+		} else {
+			return $elm$core$Maybe$Nothing;
+		}
+	});
 var $author$project$Main$viewCodeViews = $elm$core$List$indexedMap(
 	F2(
 		function (index, codeView) {
-			if (codeView.$ === 'Loaded') {
-				var filename = codeView.a.filename;
-				var contents = codeView.a.contents;
-				var mode = codeView.a.mode;
-				return A2(
-					$elm$html$Html$div,
-					_List_fromArray(
-						[
-							$elm$html$Html$Attributes$class('codeViewerContainer')
-						]),
-					_List_fromArray(
-						[
-							A2(
-							$elm$html$Html$h3,
-							_List_Nil,
+			return A2(
+				$elm$core$Maybe$withDefault,
+				A2($elm$html$Html$div, _List_Nil, _List_Nil),
+				A2(
+					$author$project$Main$mapCodeView,
+					function (_v0) {
+						var filename = _v0.a;
+						var contents = _v0.b;
+						var mode = _v0.c;
+						return A2(
+							$elm$html$Html$div,
 							_List_fromArray(
 								[
-									$elm$html$Html$text(filename)
-								])),
-							A3(
-							$elm$html$Html$node,
-							'code-viewer',
-							_List_fromArray(
-								[
-									A2($elm$html$Html$Attributes$attribute, 'editor-value', contents),
-									A2($elm$html$Html$Attributes$attribute, 'mode', mode),
-									A2(
-									$elm$html$Html$Events$on,
-									'editorChanged',
-									A2(
-										$elm$json$Json$Decode$map,
-										$author$project$Main$UpdSourceCode(index),
-										A2(
-											$elm$json$Json$Decode$at,
-											_List_fromArray(
-												['detail', 'value']),
-											$elm$json$Json$Decode$string)))
+									$elm$html$Html$Attributes$class('codeViewerContainer')
 								]),
-							_List_Nil)
-						]));
-			} else {
-				return A2($elm$html$Html$div, _List_Nil, _List_Nil);
-			}
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$h3,
+									_List_Nil,
+									_List_fromArray(
+										[
+											$elm$html$Html$text(filename)
+										])),
+									A3(
+									$elm$html$Html$node,
+									'code-viewer',
+									_List_fromArray(
+										[
+											A2($elm$html$Html$Attributes$attribute, 'editor-value', contents),
+											A2($elm$html$Html$Attributes$attribute, 'mode', mode),
+											A2(
+											$elm$html$Html$Events$on,
+											'editorChanged',
+											A2(
+												$elm$json$Json$Decode$map,
+												$author$project$Main$UpdSourceCode(index),
+												A2(
+													$elm$json$Json$Decode$at,
+													_List_fromArray(
+														['detail', 'value']),
+													$elm$json$Json$Decode$string)))
+										]),
+									_List_Nil)
+								]));
+					},
+					codeView));
 		}));
 var $elm$html$Html$label = _VirtualDom_node('label');
 var $author$project$Main$viewLabeledInput = F3(

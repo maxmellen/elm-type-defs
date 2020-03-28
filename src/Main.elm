@@ -84,19 +84,6 @@ init flags =
     ( initialState, Cmd.batch <| List.indexedMap getSourceFile codeViews )
 
 
-getSourceFile : Int -> CodeView -> Cmd Msg
-getSourceFile index codeView =
-    case codeView of
-        Loading { filename } ->
-            Http.get
-                { url = "./src/" ++ filename
-                , expect = Http.expectString <| GotSourceFile index
-                }
-
-        _ ->
-            Cmd.none
-
-
 view : Model -> Html Msg
 view model =
     H.div [] <|
@@ -118,24 +105,60 @@ view model =
             ++ viewCodeViews model.codeViews
 
 
-viewCodeViews : List CodeView -> List (Html Msg)
-viewCodeViews =
-    List.indexedMap <|
-        \index codeView ->
-            case codeView of
-                Loaded { filename, contents, mode } ->
-                    H.div [ A.class "codeViewerContainer" ]
-                        [ H.h3 [] [ H.text filename ]
-                        , H.node "code-viewer"
-                            [ A.attribute "editor-value" contents
-                            , A.attribute "mode" mode
-                            , E.on "editorChanged" <| JD.map (UpdSourceCode index) <| JD.at [ "detail", "value" ] <| JD.string
-                            ]
-                            []
-                        ]
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        UpdLocalStorageFormKey key ->
+            ( { model | localStorageFormKey = key }, Cmd.none )
 
-                _ ->
-                    H.div [] []
+        UpdLocalStorageFormValue value ->
+            ( { model | localStorageFormValue = value }, Cmd.none )
+
+        GetFromLocalStorageReq ->
+            ( { model | waitingForJs = True }, localStorageGetReq { key = model.localStorageFormKey } )
+
+        GetFromLocalStorageResp newValue ->
+            ( { model | waitingForJs = False, localStorageFormValue = newValue }, Cmd.none )
+
+        SetToLocalStorage ->
+            ( model, localStorageSet { key = model.localStorageFormKey, value = model.localStorageFormValue } )
+
+        ClearLocalStorage ->
+            ( { model | localStorageFormKey = "", localStorageFormValue = "" }, localStorageClear () )
+
+        GotSourceFile index result ->
+            let
+                codeViews =
+                    result
+                        |> Result.map (\contents -> updateByIndex (loadCodeView contents) index model.codeViews)
+                        |> Result.withDefault model.codeViews
+            in
+            ( { model | codeViews = codeViews }, Cmd.none )
+
+        UpdSourceCode index contents ->
+            let
+                codeViews =
+                    updateByIndex (updateCodeView <| always contents) index model.codeViews
+            in
+            ( { model | codeViews = codeViews }, Cmd.none )
+
+
+subscriptions : Model -> Sub Msg
+subscriptions =
+    always <| localStorageGetResp (\{ value } -> GetFromLocalStorageResp value)
+
+
+getSourceFile : Int -> CodeView -> Cmd Msg
+getSourceFile index codeView =
+    case codeView of
+        Loading { filename } ->
+            Http.get
+                { url = "./src/" ++ filename
+                , expect = Http.expectString <| GotSourceFile index
+                }
+
+        _ ->
+            Cmd.none
 
 
 viewLabeledInput : String -> String -> (String -> msg) -> Html msg
@@ -148,78 +171,76 @@ viewLabeledInput label value msg =
         ]
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
-    let
-        currentKey =
-            model.localStorageFormKey
+viewCodeViews : List CodeView -> List (Html Msg)
+viewCodeViews =
+    List.indexedMap <|
+        \index codeView ->
+            codeView
+                |> mapCodeView
+                    (\( filename, contents, mode ) ->
+                        H.div [ A.class "codeViewerContainer" ]
+                            [ H.h3 [] [ H.text filename ]
+                            , H.node "code-viewer"
+                                [ A.attribute "editor-value" contents
+                                , A.attribute "mode" mode
+                                , E.on "editorChanged" <|
+                                    JD.map (UpdSourceCode index) <|
+                                        JD.at [ "detail", "value" ] <|
+                                            JD.string
+                                ]
+                                []
+                            ]
+                    )
+                |> Maybe.withDefault (H.div [] [])
 
-        currentValue =
-            model.localStorageFormValue
-    in
-    case msg of
-        UpdLocalStorageFormKey newKey ->
-            ( { model | localStorageFormKey = newKey }, Cmd.none )
 
-        UpdLocalStorageFormValue newValue ->
-            ( { model | localStorageFormValue = newValue }, Cmd.none )
+updateByIndex : (a -> a) -> Int -> List a -> List a
+updateByIndex f i =
+    List.indexedMap <|
+        \i_ a ->
+            if i_ == i then
+                f a
 
-        GetFromLocalStorageReq ->
-            ( { model | waitingForJs = True }, localStorageGetReq { key = currentKey } )
+            else
+                a
 
-        GetFromLocalStorageResp newValue ->
-            ( { model | waitingForJs = False, localStorageFormValue = newValue }, Cmd.none )
 
-        SetToLocalStorage ->
-            ( model, localStorageSet { key = currentKey, value = currentValue } )
+loadCodeView : String -> CodeView -> CodeView
+loadCodeView contents codeView =
+    case codeView of
+        Loading { filename } ->
+            Loaded
+                { filename = filename
+                , contents = contents
+                , mode = inferMode filename
+                }
 
-        ClearLocalStorage ->
-            ( { model | localStorageFormKey = "", localStorageFormValue = "" }, localStorageClear () )
+        _ ->
+            codeView
 
-        GotSourceFile updateIndex httpResult ->
-            let
-                updateByIndex contents =
-                    \index codeView ->
-                        case codeView of
-                            Loading { filename } ->
-                                if index == updateIndex then
-                                    Loaded { filename = filename, contents = contents, mode = inferMode filename }
 
-                                else
-                                    codeView
+updateCodeView : (String -> String) -> CodeView -> CodeView
+updateCodeView f codeView =
+    case codeView of
+        Loaded { filename, contents, mode } ->
+            Loaded
+                { filename = filename
+                , contents = f contents
+                , mode = mode
+                }
 
-                            _ ->
-                                codeView
+        _ ->
+            codeView
 
-                updatedCodeViews =
-                    case httpResult of
-                        Ok sourceCode ->
-                            List.indexedMap (updateByIndex sourceCode) model.codeViews
 
-                        _ ->
-                            model.codeViews
-            in
-            ( { model | codeViews = updatedCodeViews }, Cmd.none )
+mapCodeView : (( String, String, String ) -> a) -> CodeView -> Maybe a
+mapCodeView f codeView =
+    case codeView of
+        Loaded { filename, contents, mode } ->
+            Just <| f ( filename, contents, mode )
 
-        UpdSourceCode updateIndex updatedContents ->
-            let
-                updateByIndex =
-                    \index codeView ->
-                        case codeView of
-                            Loaded loadedView ->
-                                if index == updateIndex then
-                                    Loaded { loadedView | contents = updatedContents }
-
-                                else
-                                    codeView
-
-                            _ ->
-                                codeView
-
-                updatedCodeViews =
-                    List.indexedMap updateByIndex model.codeViews
-            in
-            ( { model | codeViews = updatedCodeViews }, Cmd.none )
+        _ ->
+            Nothing
 
 
 inferMode : String -> String
@@ -227,11 +248,8 @@ inferMode filename =
     let
         extension =
             filename
-                |> Regex.find fileExtension
-                |> List.head
-                |> Maybe.map .submatches
-                |> Maybe.andThen List.head
-                |> Maybe.withDefault Nothing
+                |> (Regex.find fileExtensionRegex >> List.head)
+                |> Maybe.andThen (.submatches >> List.head >> Maybe.withDefault Nothing)
                 |> Maybe.withDefault ""
     in
     case extension of
@@ -245,12 +263,7 @@ inferMode filename =
             ""
 
 
-fileExtension : Regex
-fileExtension =
+fileExtensionRegex : Regex
+fileExtensionRegex =
     Regex.fromString "\\.(\\w+)$"
         |> Maybe.withDefault Regex.never
-
-
-subscriptions : Model -> Sub Msg
-subscriptions =
-    always <| localStorageGetResp (\{ value } -> GetFromLocalStorageResp value)
